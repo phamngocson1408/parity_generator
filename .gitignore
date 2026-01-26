@@ -1,0 +1,8 @@
+*.v
+*.sv
+*__pycache__/
+DCLS_generator/module_*/*
+*.swp
+*.swo
+*:Zone.Identifier
+axicrypt/
