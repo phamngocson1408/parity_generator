@@ -104,40 +104,40 @@ class ExtractINFO_Parity_Bus(ExtractINFO_Parity):
             assert ip_err_port, "Inconsistent information between Error port and FIERR location"
 
     # --------------------------------------------
-    # BUS
+    # BUS - REMOVED: BUS columns have been removed from INFO file
     # --------------------------------------------
-    def _extract_filelist_list_bus(self) -> list:
-        filelist_str = self.info_dict["BUS FILE LIST"]
-        filelist_list = filelist_str.replace(" ", "").replace("\n", "")
-        return filelist_list
+    # def _extract_filelist_list_bus(self) -> list:
+    #     filelist_str = self.info_dict["BUS FILE LIST"]
+    #     filelist_list = filelist_str.replace(" ", "").replace("\n", "")
+    #     return filelist_list
 
-    def _extract_bus_name(self):
-        bus_name = self.info_dict["BUS NAME"].strip()
-        return bus_name
+    # def _extract_bus_name(self):
+    #     bus_name = self.info_dict["BUS NAME"].strip()
+    #     return bus_name
 
-    def _extract_bus_clock_reset(self):
-        clk = self.info_dict["BUS CLOCK NAME"].strip()
-        rst = self.info_dict["BUS RESET NAME"].strip()
-        return clk, rst
+    # def _extract_bus_clock_reset(self):
+    #     clk = self.info_dict["BUS CLOCK NAME"].strip()
+    #     rst = self.info_dict["BUS RESET NAME"].strip()
+    #     return clk, rst
 
-    def _extract_parity_signals_bus(self):
-        bus_port = self.info_dict["BUS SIGNAL PORT NAME"].strip()
-        bus_par_port = self.info_dict["BUS PARITY PORT NAME"].strip()
-        return bus_port, bus_par_port
+    # def _extract_parity_signals_bus(self):
+    #     bus_port = self.info_dict["BUS SIGNAL PORT NAME"].strip()
+    #     bus_par_port = self.info_dict["BUS PARITY PORT NAME"].strip()
+    #     return bus_port, bus_par_port
 
-    def _extract_error_port_bus(self):
-        # ip_err_port decide the direction of the parity check
-        # 0: IP->BUS, output IP parity
-        # 1: BUS->IP, input IP parity
-        bus_err_port = self.info_dict["BUS ERROR PORT"].strip()
-        bus_err_dup  = self.info_dict["BUS ERROR DOUBLE"].strip()
-        if bus_err_dup.lower() == "yes" or bus_err_dup == "":
-            bus_err_dup = True
-        elif bus_err_dup.lower() == "no":
-            bus_err_dup = False
-        else:
-            raise ValueError(f"Un-recognized doubling mode {bus_err_dup}.")
-        return bus_err_port, bus_err_dup
+    # def _extract_error_port_bus(self):
+    #     # ip_err_port decide the direction of the parity check
+    #     # 0: IP->BUS, output IP parity
+    #     # 1: BUS->IP, input IP parity
+    #     bus_err_port = self.info_dict["BUS ERROR PORT"].strip()
+    #     bus_err_dup  = self.info_dict["BUS ERROR DOUBLE"].strip()
+    #     if bus_err_dup.lower() == "yes" or bus_err_dup == "":
+    #         bus_err_dup = True
+    #     elif bus_err_dup.lower() == "no":
+    #     bus_err_dup = False
+    #     else:
+    #         raise ValueError(f"Un-recognized doubling mode {bus_err_dup}.")
+    #     return bus_err_port, bus_err_dup
 
 
 def generate_verilog_assign(signal_list: list, total_size: int, signal_name: str, control_signal: str, result_signal: str):

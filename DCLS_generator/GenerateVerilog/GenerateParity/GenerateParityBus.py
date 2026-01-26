@@ -66,11 +66,11 @@ class GenerateBus(GenerateVerilog):
         self.fault_list = Parity_INFOExtractor._extract_fault_injection()
         self.ip_name = Parity_INFOExtractor._extract_ip_name()
         self.ip_err_port, self.ip_err_dup = Parity_INFOExtractor._extract_error_port_ip()
-        # BUS
-        self.bus_name = Parity_INFOExtractor._extract_bus_name()
-        self.bus_port, self.bus_par_port = Parity_INFOExtractor._extract_parity_signals_bus()
-        self.clk_bus, self.rst_bus = Parity_INFOExtractor._extract_bus_clock_reset()
-        self.bus_err_port, self.bus_err_dup = Parity_INFOExtractor._extract_error_port_bus()
+        # BUS - REMOVED: BUS columns have been removed from INFO file
+        # self.bus_name = Parity_INFOExtractor._extract_bus_name()
+        # self.bus_port, self.bus_par_port = Parity_INFOExtractor._extract_parity_signals_bus()
+        # self.clk_bus, self.rst_bus = Parity_INFOExtractor._extract_bus_clock_reset()
+        # self.bus_err_port, self.bus_err_dup = Parity_INFOExtractor._extract_error_port_bus()
         # Share across multiple rows
         self._init_generator()
         self.pre_print_fierr = Parity_INFOExtractor._process_fault_injection()
@@ -97,20 +97,20 @@ class GenerateBus(GenerateVerilog):
             port_blk += f"\n    output {self.ip_err_port}_B,"
         return port_blk
 
-    def _generate_port_bus(self):
-        port_blk = ""
-        if self.bus_port:
-            port_blk += f"\n    input  [{self.bit_width}-1:0] {self.bus_port},"
-        if self.bus_par_port:
-            port_blk += f"\n    input  [{self.par_width}-1:0] {self.bus_par_port},"
-        return port_blk
+    # def _generate_port_bus(self):
+    #     port_blk = ""
+    #     if self.bus_port:
+    #         port_blk += f"\n    input  [{self.bit_width}-1:0] {self.bus_port},"
+    #     if self.bus_par_port:
+    #         port_blk += f"\n    input  [{self.par_width}-1:0] {self.bus_par_port},"
+    #     return port_blk
 
-    def _generate_port_bus_err(self):
-        port_blk = ""
-        port_blk += f"\n    output {self.ip_err_port},"
-        if self.ip_err_dup:
-            port_blk += f"\n    output {self.ip_err_port}_B,"
-        return port_blk
+    # def _generate_port_bus_err(self):
+    #     port_blk = ""
+    #     port_blk += f"\n    output {self.ip_err_port},"
+    #     if self.ip_err_dup:
+    #         port_blk += f"\n    output {self.ip_err_port}_B,"
+    #     return port_blk
 
     # ------------------ Wire ------------------ #
     def _generate_wire_ip(self):
@@ -120,9 +120,9 @@ class GenerateBus(GenerateVerilog):
             port_blk = f"\nreg [{self.bit_width}-1:0] r_{self.ip_port};"
         return port_blk
 
-    def _generate_wire_bus(self):
-        port_blk = f"\nreg [{self.bit_width}-1:0] r_{self.bus_port};"
-        return port_blk
+    # def _generate_wire_bus(self):
+    #     port_blk = f"\nreg [{self.bit_width}-1:0] r_{self.bus_port};"
+    #     return port_blk
 
     # ----------------- Parity ----------------- #
     def _generate_parity_ip(self):
@@ -138,61 +138,61 @@ class GenerateBus(GenerateVerilog):
 
         return parity_blk + "\n"
 
-    def _generate_parity_bus(self):
-        parity_blk = ""
+    # def _generate_parity_bus(self):
+    #     parity_blk = ""
 
-        if self.ip_err_port:
-            sliced_dimension = split_dimension(self.bit_width, self.par_width)
-            for i in range(len(sliced_dimension)):
-                parity_blk += f"\nwire w_{self.ip_port.lower()}_parity_{i};"
-            parity_blk += "\n"
+    #     if self.ip_err_port:
+    #         sliced_dimension = split_dimension(self.bit_width, self.par_width)
+    #         for i in range(len(sliced_dimension)):
+    #             parity_blk += f"\nwire w_{self.ip_port.lower()}_parity_{i};"
+    #         parity_blk += "\n"
 
-            for i, sliced in enumerate(sliced_dimension):
-                if self.is_even:
-                    parity_blk += f"\nassign w_{self.ip_port.lower()}_parity_{i} = ^{self.ip_port}{sliced};"
-                else:
-                    parity_blk += f"\nassign w_{self.ip_port.lower()}_parity_{i} = ~(^{self.ip_port}{sliced});"
+    #         for i, sliced in enumerate(sliced_dimension):
+    #             if self.is_even:
+    #                 parity_blk += f"\nassign w_{self.ip_port.lower()}_parity_{i} = ^{self.ip_port}{sliced};"
+    #             else:
+    #                 parity_blk += f"\nassign w_{self.ip_port.lower()}_parity_{i} = ~(^{self.ip_port}{sliced});"
 
-        return parity_blk
+    #     return parity_blk
 
-    def _generate_parity_ip_at_bus(self):
-        parity_blk = ""
+    # def _generate_parity_ip_at_bus(self):
+    #     parity_blk = ""
 
-        if not self.bus_err_port:
-            sliced_dimension = split_dimension(self.bit_width, self.par_width)
-            for i, sliced in enumerate(sliced_dimension):
-                if self.is_even:
-                    parity_blk += f"\nassign {self.bus_par_port}[{i}] = ^r_{self.bus_port}{sliced};"
-                else:
-                    parity_blk += f"\nassign {self.bus_par_port}[{i}] = ~(^r_{self.bus_port}{sliced});"
+    #     if not self.bus_err_port:
+    #         sliced_dimension = split_dimension(self.bit_width, self.par_width)
+    #         for i, sliced in enumerate(sliced_dimension):
+    #             if self.is_even:
+    #                 parity_blk += f"\nassign {self.bus_par_port}[{i}] = ^r_{self.bus_port}{sliced};"
+    #             else:
+    #                 parity_blk += f"\nassign {self.bus_par_port}[{i}] = ~(^r_{self.bus_port}{sliced});"
 
-        return parity_blk + "\n"
+    #     return parity_blk + "\n"
 
-    def _generate_parity_bus_at_bus(self):
-        parity_blk = ""
+    # def _generate_parity_bus_at_bus(self):
+    #     parity_blk = ""
 
-        if self.bus_err_port:
-            sliced_dimension = split_dimension(self.bit_width, self.par_width)
-            for i in range(len(sliced_dimension)):
-                parity_blk += f"\nwire w_{self.bus_port.lower()}_parity_{i};"
-            parity_blk += "\n"
+    #     if self.bus_err_port:
+    #         sliced_dimension = split_dimension(self.bit_width, self.par_width)
+    #         for i in range(len(sliced_dimension)):
+    #             parity_blk += f"\nwire w_{self.bus_port.lower()}_parity_{i};"
+    #     parity_blk += "\n"
 
-            for i, sliced in enumerate(sliced_dimension):
-                if self.is_even:
-                    parity_blk += f"\nassign w_{self.bus_port.lower()}_parity_{i} = ^{self.bus_port}{sliced};"
-                else:
-                    parity_blk += f"\nassign w_{self.bus_port.lower()}_parity_{i} = ~(^{self.bus_port}{sliced});"
+    #     for i, sliced in enumerate(sliced_dimension):
+    #         if self.is_even:
+    #             parity_blk += f"\nassign w_{self.bus_port.lower()}_parity_{i} = ^{self.bus_port}{sliced};"
+    #     else:
+    #         parity_blk += f"\nassign w_{self.bus_port.lower()}_parity_{i} = ~(^{self.bus_port}{sliced});"
 
-        return parity_blk
+    # return parity_blk
 
     # ------------- Error Injection ------------ #
     def _assign_signal_ip(self) -> str:
         signal_assign_blk = f"\n    r_{self.ip_port} = {self.ip_port};"
         return signal_assign_blk
 
-    def _assign_signal_bus(self) -> str:
-        signal_assign_blk = f"\n    r_{self.bus_port} = {self.bus_port};"
-        return signal_assign_blk
+    # def _assign_signal_bus(self) -> str:
+    #     signal_assign_blk = f"\n    r_{self.bus_port} = {self.bus_port};"
+    #     return signal_assign_blk
 
     def _inject_error_checker(self):
         fault_sig_declare = set()
@@ -244,20 +244,20 @@ class GenerateBus(GenerateVerilog):
             GenerateBus.ip_bus_par_list[self.ip_name][self.ip_err_port].append(f"w_AnyError_{self.ip_port}")
         return err_blk
 
-    def _generate_error_check_bus(self) -> str:
-        err_blk = ""
-        if self.bus_err_port:
-            err_blk += f"\n\nwire w_AnyError_{self.bus_port};"
+    # def _generate_error_check_bus(self) -> str:
+    #     err_blk = ""
+    #     if self.bus_err_port:
+    #         err_blk += f"\n\nwire w_AnyError_{self.bus_port};"
 
-            sliced_dimension = split_dimension(self.bit_width, self.par_width)
-            err_blk += f"\nassign w_AnyError_{self.bus_port} = ("
-            for i in range(len(sliced_dimension)):
-                err_blk += f"\n    (w_{self.bus_port.lower()}_parity_{i} ^ r_{self.bus_par_port}[{i}]) |"
+    #         sliced_dimension = split_dimension(self.bit_width, self.par_width)
+    #         err_blk += f"\nassign w_AnyError_{self.bus_port} = ("
+    #         for i in range(len(sliced_dimension)):
+    #             err_blk += f"\n    (w_{self.bus_port.lower()}_parity_{i} ^ r_{self.bus_par_port}[{i}]) |"
 
-            err_blk = err_blk[:-1] + "\n);\n"
+    #         err_blk = err_blk[:-1] + "\n);\n"
 
-            GenerateBus.ip_bus_par_list[self.bus_name][self.bus_err_port].append(f"w_AnyError_{self.bus_port}")
-        return err_blk
+    #         GenerateBus.ip_bus_par_list[self.bus_name][self.bus_err_port].append(f"w_AnyError_{self.bus_port}")
+    #     return err_blk
 
     def _generate_error(self, ip_name: str, clk: str, rst: str, is_err_dup: bool):
         err_blk = ""
@@ -302,19 +302,19 @@ class GenerateBus(GenerateVerilog):
         GenerateBus.fault_inj_blk[self.ip_name] += "\n\t" + self.pre_print_fierr
         GenerateBus.ip_par_blk[self.ip_name] += self._generate_parity_ip()
 
-        GenerateBus.ip_bus_par_blk[self.ip_name] += self._generate_parity_bus()
+        # GenerateBus.ip_bus_par_blk[self.ip_name] += self._generate_parity_bus()  # REMOVED: BUS columns removed
         GenerateBus.ip_bus_err_blk[self.ip_name] += self._generate_error_check_ip()
 
-    def _wrapper_bus(self) -> None:
-        GenerateBus.bus_port_blk[self.bus_name] += self._generate_port_bus()
-        GenerateBus.bus_wire_blk[self.bus_name] += self._generate_wire_bus()
-        GenerateBus.bus_reg_blk[self.bus_name] += self._inject_error_checker()[0]
-        if not self.bus_err_port:
-            GenerateBus.bus_sig_assign[self.bus_name] += self._assign_signal_bus()
-        GenerateBus.bus_bus_par_blk[self.bus_name] += self._generate_parity_bus()
+    # def _wrapper_bus(self) -> None:
+    #     GenerateBus.bus_port_blk[self.bus_name] += self._generate_port_bus()
+    #     GenerateBus.bus_wire_blk[self.bus_name] += self._generate_wire_bus()
+    #     GenerateBus.bus_reg_blk[self.bus_name] += self._inject_error_checker()[0]
+    #     if not self.bus_err_port:
+    #         GenerateBus.bus_sig_assign[self.bus_name] += self._assign_signal_bus()
+    #     GenerateBus.bus_bus_par_blk[self.bus_name] += self._generate_parity_bus()
 
-        GenerateBus.bus_bus_par_blk[self.bus_name] += self._generate_parity_bus()
-        GenerateBus.bus_bus_err_blk[self.bus_name] += self._generate_error_check_bus()
+    #     GenerateBus.bus_bus_par_blk[self.bus_name] += self._generate_parity_bus()
+    #     GenerateBus.bus_bus_err_blk[self.bus_name] += self._generate_error_check_bus()
 
     def _list_port_ip(self):
         port_list = {}
@@ -326,15 +326,15 @@ class GenerateBus(GenerateVerilog):
             port_list[ip_name] = original_inport, original_outport, extra_inport, extra_outport
         return port_list
 
-    def _list_port_bus(self):
-        port_list = {}
-        for bus_name in GenerateBus.bus_set:
-            original_inport  = list(set(tuple(lst) for lst in GenerateBus.original_inport_bus[bus_name]))
-            original_outport = list(set(tuple(lst) for lst in GenerateBus.original_outport_bus[bus_name]))
-            extra_inport     = list(set(tuple(lst) for lst in GenerateBus.extra_inport_bus[bus_name]))
-            extra_outport    = list(set(tuple(lst) for lst in GenerateBus.extra_outport_bus[bus_name]))
-            port_list[bus_name] = original_inport, original_outport, extra_inport, extra_outport
-        return port_list
+    # def _list_port_bus(self):
+    #     port_list = {}
+    #     for bus_name in GenerateBus.bus_set:
+    #         original_inport  = list(set(tuple(lst) for lst in GenerateBus.original_inport_bus[bus_name]))
+    #         original_outport = list(set(tuple(lst) for lst in GenerateBus.original_outport_bus[bus_name]))
+    #         extra_inport     = list(set(tuple(lst) for lst in GenerateBus.extra_inport_bus[bus_name]))
+    #         extra_outport    = list(set(tuple(lst) for lst in GenerateBus.extra_outport_bus[bus_name]))
+    #     port_list[bus_name] = original_inport, original_outport, extra_inport, extra_outport
+    # return port_list
 
     # This should be run once for each Driver
     # def _generate_module_ip(self):
@@ -384,35 +384,35 @@ class GenerateBus(GenerateVerilog):
 
         return module_blk
 
-    def _generate_module_bus(self):
-        fierr_dup = set()
-        module_blk = ""
-        for bus_name in GenerateBus.bus_set:
-            clk = GenerateBus.bus_clk_rst_blk[bus_name].get('clk')
-            rst = GenerateBus.bus_clk_rst_blk[bus_name].get('rst')
+    # def _generate_module_bus(self):
+    #     fierr_dup = set()
+    #     module_blk = ""
+    #     for bus_name in GenerateBus.bus_set:
+    #         clk = GenerateBus.bus_clk_rst_blk[bus_name].get('clk')
+    #         rst = GenerateBus.bus_clk_rst_blk[bus_name].get('rst')
 
-            module_blk += f"module {bus_name}_BUS_PARITY_GEN ("
-            module_blk += f"\n    input {clk}, {rst},"
-            # [TODO]
-            for bus_err_port in GenerateBus.bus_bus_par_list[bus_name]:
-                module_blk += GenerateBus.bus_err_port_blk[bus_err_port]
-            module_blk += GenerateBus.bus_port_blk[bus_name]
-            module_blk = module_blk[:-1] + "\n);\n"
+    #         module_blk += f"module {bus_name}_BUS_PARITY_GEN ("
+    #         module_blk += f"\n    input {clk}, {rst},"
+    #         # [TODO]
+    #         for bus_err_port in GenerateBus.bus_bus_par_list[bus_name]:
+    #         module_blk += GenerateBus.bus_err_port_blk[bus_err_port]
+    #     module_blk += GenerateBus.bus_port_blk[bus_name]
+    #     module_blk = module_blk[:-1] + "\n);\n"
 
-            module_blk += GenerateBus.bus_wire_blk[bus_name] + "\n"
-            module_blk += GenerateBus.bus_reg_blk[bus_name] + "\n"
-            module_blk += "\nalways@(*) begin"
-            module_blk += GenerateBus.fault_inj_blk[bus_name]
-            module_blk += "\nend\n"
+    #     module_blk += GenerateBus.bus_wire_blk[bus_name] + "\n"
+    #     module_blk += GenerateBus.bus_reg_blk[bus_name] + "\n"
+    #     module_blk += "\nalways@(*) begin"
+    #     module_blk += GenerateBus.fault_inj_blk[bus_name]
+    #     module_blk += "\nend\n"
 
-            module_blk += GenerateBus.bus_par_blk[bus_name]
-            module_blk += GenerateBus.bus_bus_par_blk[bus_name]
-            module_blk += GenerateBus.ip_bus_err_blk[bus_name]
-            module_blk += self._generate_error(bus_name, clk, rst, GenerateBus.is_error_dup_bus[bus_name])
+    #     module_blk += GenerateBus.bus_par_blk[bus_name]
+    #     module_blk += GenerateBus.bus_bus_par_blk[bus_name]
+    #     module_blk += GenerateBus.ip_bus_err_blk[bus_name]
+    #     module_blk += self._generate_error(bus_name, clk, rst, GenerateBus.is_error_dup_bus[bus_name])
 
-            module_blk += "\nendmodule\n\n"
+    #     module_blk += "\nendmodule\n\n"
 
-        return module_blk
+    # return module_blk
 
     # This should be run after finish generating
     def _reset_generator(self) -> None:
@@ -456,19 +456,19 @@ class GenerateBus(GenerateVerilog):
         if self.ip_name not in GenerateBus.ip_set:
             # Keep track of IP/BUS list
             GenerateBus.ip_set.add(self.ip_name)
-            GenerateBus.bus_set.add(self.bus_name)
+            # GenerateBus.bus_set.add(self.bus_name)  # REMOVED: BUS columns removed
             GenerateBus.is_error_dup_ip[self.ip_name] = self.ip_err_dup
-            GenerateBus.is_error_dup_bus[self.bus_name] = self.bus_err_dup
+            # GenerateBus.is_error_dup_bus[self.bus_name] = self.bus_err_dup  # REMOVED: BUS columns removed
             # Port list
             GenerateBus.original_inport[self.ip_name] = [["", self.clk_ip, ""], ["", self.rst_ip, ""]]
             GenerateBus.original_outport[self.ip_name] = []
             GenerateBus.extra_inport[self.ip_name] = []
             GenerateBus.extra_outport[self.ip_name] = []
 
-            GenerateBus.original_inport_bus[self.bus_name] = [["", self.clk_bus, ""], ["", self.rst_bus, ""]]
-            GenerateBus.original_outport_bus[self.bus_name] = []
-            GenerateBus.extra_inport_bus[self.bus_name] = []
-            GenerateBus.extra_outport_bus[self.bus_name] = []
+            # GenerateBus.original_inport_bus[self.bus_name] = [["", self.clk_bus, ""], ["", self.rst_bus, ""]]  # REMOVED: BUS columns removed
+            # GenerateBus.original_outport_bus[self.bus_name] = []  # REMOVED: BUS columns removed
+            # GenerateBus.extra_inport_bus[self.bus_name] = []  # REMOVED: BUS columns removed
+            # GenerateBus.extra_outport_bus[self.bus_name] = []  # REMOVED: BUS columns removed
             # Init IP ...
             GenerateBus.ip_port_blk[self.ip_name] = ""
             GenerateBus.ip_wire_blk[self.ip_name] = ""
@@ -483,13 +483,13 @@ class GenerateBus(GenerateVerilog):
             GenerateBus.ip_clk_rst_blk[self.ip_name] = {"clk": self.clk_ip, "rst": self.rst_ip}
             GenerateBus.ip_fierr_map[self.ip_name] = {}
 
-            # Init BUS
-            GenerateBus.bus_clk_rst_blk[self.bus_name] = {"clk": self.clk_bus, "rst": self.rst_bus}
-            GenerateBus.bus_port_blk[self.bus_name] = ""
-            GenerateBus.bus_err_port_blk[self.bus_name] = ""
-            GenerateBus.bus_wire_blk[self.bus_name] = ""
-            GenerateBus.bus_reg_blk[self.bus_name] = ""
-            GenerateBus.bus_sig_assign[self.bus_name] = ""
+            # Init BUS - REMOVED: BUS columns removed
+            # GenerateBus.bus_clk_rst_blk[self.bus_name] = {"clk": self.clk_bus, "rst": self.rst_bus}
+            # GenerateBus.bus_port_blk[self.bus_name] = ""
+            # GenerateBus.bus_err_port_blk[self.bus_name] = ""
+            # GenerateBus.bus_wire_blk[self.bus_name] = ""
+            # GenerateBus.bus_reg_blk[self.bus_name] = ""
+            # GenerateBus.bus_sig_assign[self.bus_name] = ""
 
         # if self.fault_list and not self.ip_err_port:
         if self.fault_list:

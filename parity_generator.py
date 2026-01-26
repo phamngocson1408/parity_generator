@@ -27,13 +27,18 @@ from DCLS_generator.common.find_bracket import remove_after_pattern
 from DCLS_generator.function_wrapper.dcls_wrappers import filter_ip_index
 
 import warnings
+import os
 
 warnings.simplefilter(action='ignore', category=FutureWarning)
+
+# Set AXICRYPT_HOME if not already set
+if 'AXICRYPT_HOME' not in os.environ:
+    os.environ['AXICRYPT_HOME'] = os.path.join(os.getcwd(), 'axicrypt')
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Parity generator v1 by Tho Mai (2024.06)')
     parser.add_argument('-inst', type=str, default='BOS_BUS_PARITY_AXI_M', help='Parity instance name')
-    parser.add_argument('-type', type=str, help='Parity scheme type')
+    parser.add_argument('-type', type=str, default='SAFETY.PARITY', help='Parity scheme type')
     parser.add_argument("-info", type=str, help="INFO file path")
     args = parser.parse_args()
 
@@ -42,7 +47,7 @@ if __name__ == "__main__":
     if args.type:
         parity_scheme_list = [args.type]
     else:
-        parity_scheme_list = ["SAFETY.SIGNAL PARITY", "SAFETY.BUS PARITY", "SAFETY.REGISTER PARITY"]
+        parity_scheme_list = ["SAFETY.PARITY"]
     # parity_scheme = "SAFETY.REGISTER PARITY"
 
     for parity_scheme in parity_scheme_list:
@@ -199,7 +204,7 @@ if __name__ == "__main__":
                     par_file = open(par_dir, 'w')
                     par_file.write(before_top_file_contents + top_file_contents + after_top_file_contents)
 
-        elif parity_scheme == "SAFETY.BUS PARITY":
+        elif parity_scheme == "SAFETY.PARITY":
             ip_filelist_dict = {}
             if info_dict_list:
                 for info_dict in info_dict_list:
