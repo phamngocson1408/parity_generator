@@ -118,7 +118,7 @@ class ExtractINFO_DCLS(ExtractINFO):
         return is_wrap
 
     def _is_error_double(self) -> bool:
-        dup_err = self.info_dict["IP ERROR DOUBLE"].strip().lower()
+        dup_err = self.info_dict["ERROR DOUBLE"].strip().lower()
         if dup_err == "yes" or dup_err == "":
             is_err_dup = True
         elif dup_err == "no":
@@ -128,7 +128,7 @@ class ExtractINFO_DCLS(ExtractINFO):
         return is_err_dup
 
     def _extract_err_port(self):
-        ip_err_port = self.info_dict["IP ERROR PORT"].strip()
+        ip_err_port = self.info_dict["ERROR PORT"].strip()
         try:
             dup_err_port = self.info_dict["DUPLICATION ERROR PORT"].strip()
         except:
@@ -138,7 +138,7 @@ class ExtractINFO_DCLS(ExtractINFO):
     # Some fields will be checked further individually/additionally in their dedicated methods
     def _template_error_check(self) -> None:
         # These will read later anyway, but it looks cooler to be read in advance lol
-        err_port = self.info_dict["IP ERROR PORT"].strip()
+        err_port = self.info_dict["ERROR PORT"].strip()
         assert err_port, bcolors.FAIL + "Error port was not specified" + bcolors.ENDC
         fault_port = self.info_dict["FAULT INJECTION"].strip()
         assert fault_port, bcolors.FAIL + "Fault injection port was not specified" + bcolors.ENDC

@@ -69,16 +69,16 @@ class ExtractINFO_Parity_Bus(ExtractINFO_Parity):
         return clk, rst
 
     def _extract_parity_signals_ip(self):
-        ip_port = self.info_dict["IP SIGNAL PORT NAME"].strip()
-        ip_par_port = self.info_dict["IP PARITY PORT NAME"].strip()
+        ip_port = self.info_dict["SIGNAL PORT NAME"].strip()
+        ip_par_port = self.info_dict["PARITY PORT NAME"].strip()
         return ip_port, ip_par_port
 
     def _extract_error_port_ip(self):
         # ip_err_port decide the direction of the parity check
         # 0: IP->BUS, output IP parity
         # 1: BUS->IP, input IP parity
-        ip_err_port = self.info_dict["IP ERROR PORT"].strip()
-        ip_err_dup  = self.info_dict["IP ERROR DOUBLE"].strip()
+        ip_err_port = self.info_dict["ERROR PORT"].strip()
+        ip_err_dup  = self.info_dict["ERROR DOUBLE"].strip()
         if ip_err_dup.lower() == "yes":
             ip_err_dup = True
         elif ip_err_dup == "":

@@ -18,7 +18,7 @@ class ExtractINFO_Parity(ExtractINFO):
         return is_even
 
     def _is_error_double(self) -> bool:
-        dup_err = self.info_dict["IP ERROR DOUBLE"].strip().lower()
+        dup_err = self.info_dict["ERROR DOUBLE"].strip().lower()
         if dup_err == "yes" or dup_err == "":
             is_err_dup = True
         elif dup_err == "no":
