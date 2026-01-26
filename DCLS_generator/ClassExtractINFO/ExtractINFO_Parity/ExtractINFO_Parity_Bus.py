@@ -64,8 +64,8 @@ class ExtractINFO_Parity_Bus(ExtractINFO_Parity):
         return ip_name
 
     def _extract_ip_clock_reset(self):
-        clk = self.info_dict["IP CLOCK NAME"].strip()
-        rst = self.info_dict["IP RESET NAME"].strip()
+        clk = self.info_dict["CLOCK"].strip()
+        rst = self.info_dict["RESET"].strip()
         return clk, rst
 
     def _extract_parity_signals_ip(self):

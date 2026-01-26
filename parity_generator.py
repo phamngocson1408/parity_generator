@@ -297,14 +297,19 @@ if __name__ == "__main__":
                         extra_inport=extra_inport,
                         extra_outport=extra_outport) + "\n"
 
-                    # Add instance
-                    all_port = original_inport + original_outport + extra_inport + extra_outport
-                    instance_content = f"\n{top_name}_IP_PARITY_GEN u_{top_name.lower()}_ip_parity_gen ("
-                    for port in all_port:
-                        instance_content += f"\n    .{port[1]} ({port[1]}),"
-                    instance_content = instance_content[:-1] + "\n);\n"
+                    # Add instance - only if not already exists
+                    instance_name = f"u_{top_name.lower()}_ip_parity_gen"
+                    if instance_name not in module_whole_content:
+                        all_port = original_inport + original_outport + extra_inport + extra_outport
+                        instance_content = f"\n{top_name}_IP_PARITY_GEN u_{top_name.lower()}_ip_parity_gen ("
+                        for port in all_port:
+                            instance_content += f"\n    .{port[1]} ({port[1]}),"
+                        instance_content = instance_content[:-1] + "\n);\n"
 
-                    module_whole_content = module_whole_content[:-9] + instance_content + "endmodule"
+                        module_whole_content = module_whole_content[:-9] + instance_content + "endmodule"
+                    else:
+                        print(f"Instance {instance_name} already exists in {top_name}, skipping instance addition")
+                        module_whole_content = module_whole_content
                     top_file_contents = module_declaration_content + module_whole_content
 
                     # par_dir = f"./DCLS_generator/module_parity/BUS_PARITY_{top_name}_TOP.v"
