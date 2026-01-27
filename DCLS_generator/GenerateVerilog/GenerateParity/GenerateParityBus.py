@@ -66,6 +66,7 @@ class GenerateBus(GenerateVerilog):
         self.fault_list = Parity_INFOExtractor._extract_fault_injection()
         self.ip_name = Parity_INFOExtractor._extract_ip_name()
         self.ip_err_port, self.ip_err_dup = Parity_INFOExtractor._extract_error_port_ip()
+        self.drive_receive = Parity_INFOExtractor._extract_drive_receive()
         # BUS - REMOVED: BUS columns have been removed from INFO file
         # self.bus_name = Parity_INFOExtractor._extract_bus_name()
         # self.bus_port, self.bus_par_port = Parity_INFOExtractor._extract_parity_signals_bus()
@@ -83,7 +84,7 @@ class GenerateBus(GenerateVerilog):
     def _generate_port_ip(self):
         port_blk = ""
         port_blk += f"\n    input  [{self.bit_width}-1:0] {self.ip_port},"
-        if self.ip_err_port:
+        if self.drive_receive == "RECEIVE":
             port_blk += f"\n    input  [{self.bit_width // self.par_width}-1:0] {self.ip_par_port},"
         else:
             port_blk += f"\n    output [{self.bit_width // self.par_width}-1:0] {self.ip_par_port},"
@@ -128,13 +129,20 @@ class GenerateBus(GenerateVerilog):
     def _generate_parity_ip(self):
         parity_blk = ""
 
-        if not self.ip_err_port:
+        if self.drive_receive == "DRIVE":
             sliced_dimension = split_dimension(self.bit_width, self.par_width)
             for i, sliced in enumerate(sliced_dimension):
                 if self.is_even:
                     parity_blk += f"\nassign {self.ip_par_port}[{i}] = ^r_{self.ip_port}{sliced};"
                 else:
                     parity_blk += f"\nassign {self.ip_par_port}[{i}] = ~(^r_{self.ip_port}{sliced});"
+        elif self.drive_receive == "RECEIVE":
+            sliced_dimension = split_dimension(self.bit_width, self.par_width)
+            for i, sliced in enumerate(sliced_dimension):
+                if self.is_even:
+                    parity_blk += f"\nwire w_{self.ip_port.lower()}_parity_{i} = ^{self.ip_port}{sliced};"
+                else:
+                    parity_blk += f"\nwire w_{self.ip_port.lower()}_parity_{i} = ~(^{self.ip_port}{sliced});"
 
         return parity_blk + "\n"
 
@@ -231,7 +239,7 @@ class GenerateBus(GenerateVerilog):
     # ----------------- Error ------------------ #
     def _generate_error_check_ip(self) -> str:
         err_blk = ""
-        if self.ip_err_port:
+        if self.drive_receive == "RECEIVE":
             err_blk += f"\n\nwire w_AnyError_{self.ip_port};"
 
             sliced_dimension = split_dimension(self.bit_width, self.par_width)
@@ -519,7 +527,8 @@ class GenerateBus(GenerateVerilog):
                     GenerateBus.ip_bus_par_list[self.ip_name][self.ip_err_port]
                 except:
                     GenerateBus.ip_bus_par_list[self.ip_name][self.ip_err_port] = []
-                    GenerateBus.ip_err_port_blk[self.ip_err_port] = self._generate_port_ip_err()
+                    if self.drive_receive == "RECEIVE":
+                        GenerateBus.ip_err_port_blk[self.ip_err_port] = self._generate_port_ip_err()
 
 
 def split_dimension(size: int, part_size: int) -> list:

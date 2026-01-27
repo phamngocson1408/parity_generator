@@ -25,7 +25,7 @@ class ExtractINFO_Parity_Bus(ExtractINFO_Parity):
         # Data of this field should be consistent
         signal_list = self.info_dict["FAULT INJECTION"].split(",")
         if signal_list[0]:
-            if self._extract_error_port_ip()[0]:
+            if self._extract_drive_receive() == "RECEIVE":
                 total_size = int(super()._extract_dimension()[0] / super()._extract_dimension()[1])
             else:
                 total_size = super()._extract_dimension()[0]
@@ -89,6 +89,15 @@ class ExtractINFO_Parity_Bus(ExtractINFO_Parity):
         else:
             raise ValueError(f"Un-recognized doubling mode {ip_err_dup}.")
         return ip_err_port, ip_err_dup
+
+    def _extract_drive_receive(self):
+        drive_receive = self.info_dict["DRIVE/RECEIVE"].strip().upper()
+        if drive_receive == "DRIVE":
+            return "DRIVE"
+        elif drive_receive == "RECEIVE":
+            return "RECEIVE"
+        else:
+            raise ValueError(f"Invalid DRIVE/RECEIVE value: {drive_receive}. Must be 'DRIVE' or 'RECEIVE'.")
 
     def _extract_fierr_location(self) -> None:
         location = self.info_dict["FAULT INJECTION LOCATION"].strip()
