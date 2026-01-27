@@ -4,41 +4,57 @@ from DCLS_generator.ClassExtractINFO.ExtractINFO_Parity.ExtractINFO_Parity impor
 class ExtractINFO_Parity_Bus(ExtractINFO_Parity):
     def __init__(self, info_dict):
         self.info_dict = info_dict
-        self._extract_fierr_location()
 
     def _extract_fault_injection(self) -> list:
         fault_list = []
-        fault_str = self.info_dict["FAULT INJECTION"]
-        if fault_str:
-            fault_str_list = fault_str.split(",")
-            for fault_sub_str in fault_str_list:
-                fault_sub_str.replace(" ", "").replace("\n", "")
-                fault_str_split = fault_sub_str.split("@")
-                valid_signal = fault_str_split[1]
-                fault_signal = fault_str_split[0].replace("{", "").replace("}", "").split(",")
-                fault_list += [[valid_signal, fault_signal]]
+        # Support default YES if missing or empty
+        fault_gen = self.info_dict.get("FAULT INJECTION", "YES").strip().upper()
+        if fault_gen == "": fault_gen = "YES"
+
+        if fault_gen == "YES":
+            sig_port = self.info_dict["SIGNAL PORT NAME"].strip()
+            # Automatically generate port name: FIERR_<SIGNAL PORT NAME>
+            # FIERR port is always 1 bit
+            control_port = f"FIERR_{sig_port}"
+            
+            mode = self._extract_drive_receive()
+            if mode == "RECEIVE":
+                par_port = self.info_dict["PARITY PORT NAME"].strip()
+                # Format: [[control_port, [target_bit]]]
+                fault_list = [[control_port, [f"{par_port}[0]"]]]
+            else:
+                fault_list = [[control_port, [f"{sig_port}[0]"]]]
+                
         return fault_list
 
     # [TODO] Move this to GenerateParityBus later
     # For now, only support data fierr for regular channel and parity fierr for checker
     def _process_fault_injection(self) -> str:
-        # Data of this field should be consistent
-        signal_list = self.info_dict["FAULT INJECTION"].split(",")
-        if signal_list[0]:
-            if self._extract_drive_receive() == "RECEIVE":
+        fault_gen = self.info_dict.get("FAULT INJECTION", "YES").strip().upper()
+        if fault_gen == "": fault_gen = "YES"
+
+        if fault_gen == "YES":
+            sig_port = self.info_dict["SIGNAL PORT NAME"].strip()
+            par_port = self.info_dict["PARITY PORT NAME"].strip()
+            mode = self._extract_drive_receive()
+            
+            control_signal = f"r_FIERR_{sig_port}"
+            if mode == "RECEIVE":
                 total_size = int(super()._extract_dimension()[0] / super()._extract_dimension()[1])
+                target = par_port
             else:
                 total_size = super()._extract_dimension()[0]
+                target = sig_port
 
-            signal_name = signal_list[0].split("@")[0].split("[")[0].strip()
-            control_signal = f"r_{signal_list[0].split('@')[1].split('[')[0].strip()}"
-            result_signal = f"r_{signal_name}"
+            # Use generate_verilog_assign with bit 0 flip by default
+            signal_list = [f"{target}[0]@ignore"] 
+            result_signal = f"r_{target}"
 
-            return generate_verilog_assign(signal_list, total_size, signal_name, control_signal, result_signal)
+            return generate_verilog_assign(signal_list, total_size, target, control_signal, result_signal)
         else:
             ip_port, ip_par_port =  self._extract_parity_signals_ip()
-            ip_err_port, ip_err_dup = self._extract_error_port_ip()
-            if ip_err_port:
+            mode = self._extract_drive_receive()
+            if mode == "RECEIVE":
                 return f"\nr_{ip_par_port} = {ip_par_port};"
             else:
                 return f"\nr_{ip_port} = {ip_port};"
@@ -99,18 +115,7 @@ class ExtractINFO_Parity_Bus(ExtractINFO_Parity):
         else:
             raise ValueError(f"Invalid DRIVE/RECEIVE value: {drive_receive}. Must be 'DRIVE' or 'RECEIVE'.")
 
-    def _extract_fierr_location(self) -> None:
-        location = self.info_dict["FAULT INJECTION LOCATION"].strip()
-        if location == "CHECKER":
-            is_checker = True
-        elif location == "":
-            is_checker = False
-        else:
-            raise ValueError("Invalid FIERR location")
 
-        if is_checker:
-            ip_err_port, ip_err_dup = self._extract_error_port_ip()
-            assert ip_err_port, "Inconsistent information between Error port and FIERR location"
 
     # --------------------------------------------
     # BUS - REMOVED: BUS columns have been removed from INFO file

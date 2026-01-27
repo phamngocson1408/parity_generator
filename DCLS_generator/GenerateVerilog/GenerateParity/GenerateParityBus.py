@@ -208,15 +208,15 @@ class GenerateBus(GenerateVerilog):
 
         for fault_list in self.fault_list:
             fault_inj, fault_sig_list = fault_list
-            portion = portion_extraction(fault_inj)
-            if portion:
-                lsb = int(portion) * int(self.par_width)
-                msb = lsb + int(self.par_width) - 1
-                portion = f"[{msb}:{lsb}]"
-            else:
-                portion = ""
+            # Extract port name without width specification (e.g., "FIERR_PORT" from "FIERR_PORT[3:0]")
+            fault_inj_name = fault_inj.split("[")[0].strip()
+            
+            # For auto-generated FIERR ports, no per-bit portion logic needed
+            # Just use the whole port
+            portion = ""
+            
             if fault_list:
-                fault_inj_blk += f"\n    if (r_{fault_inj}) begin"
+                fault_inj_blk += f"\n    if (r_{fault_inj_name}) begin"
                 for fault_sig in fault_sig_list:
                     fault_sig_split = fault_sig.split("[")
                     fault_sig_name = fault_sig_split[0].strip()
@@ -243,11 +243,15 @@ class GenerateBus(GenerateVerilog):
             err_blk += f"\n\nwire w_AnyError_{self.ip_port};"
 
             sliced_dimension = split_dimension(self.bit_width, self.par_width)
-            err_blk += f"\nassign w_AnyError_{self.ip_port} = ("
-            for i in range(len(sliced_dimension)):
-                err_blk += f"\n    (w_{self.ip_port.lower()}_parity_{i} ^ r_{self.ip_par_port}[{i}]) |"
+            # Create calculated parity bus
+            err_blk += f"\nwire [{len(sliced_dimension)-1}:0] w_calculated_parity_{self.ip_port};"
+            err_blk += f"\nassign w_calculated_parity_{self.ip_port} = {{"
+            for i in range(len(sliced_dimension)-1, -1, -1):  # from high to low
+                err_blk += f"w_{self.ip_port.lower()}_parity_{i}, "
+            err_blk = err_blk[:-2] + "};\n"  # remove last comma
 
-            err_blk = err_blk[:-1] + "\n);\n"
+            # Reduction OR of (calculated ^ received)
+            err_blk += f"\nassign w_AnyError_{self.ip_port} = |(w_calculated_parity_{self.ip_port} ^ r_{self.ip_par_port});\n"
 
             GenerateBus.ip_bus_par_list[self.ip_name][self.ip_err_port].append(f"w_AnyError_{self.ip_port}")
         return err_blk
@@ -519,7 +523,9 @@ class GenerateBus(GenerateVerilog):
             GenerateBus.original_outport[self.ip_name].append([f"[{self.bit_width}-1:0]", self.ip_port, ""])
             GenerateBus.extra_outport[self.ip_name].append([f"[{self.bit_width // self.par_width}-1:0]", self.ip_par_port, ""])
         for fault_list in self.fault_list:
-            GenerateBus.extra_inport[self.ip_name].append([f"[{self.bit_width // self.par_width}-1:0]", fault_list[0].split("[")[0], ""])
+            # FIERR port is always 1 bit
+            control_port_name = fault_list[0].split("[")[0]  # Get port name
+            GenerateBus.extra_inport[self.ip_name].append(["", control_port_name, ""])
 
         if self.ip_name in GenerateBus.ip_set:
             if self.ip_err_port:
