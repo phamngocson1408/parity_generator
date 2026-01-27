@@ -40,17 +40,18 @@ class ExtractINFO_Parity_Bus(ExtractINFO_Parity):
             
             control_signal = f"r_FIERR_{sig_port}"
             if mode == "RECEIVE":
-                total_size = int(super()._extract_dimension()[0] / super()._extract_dimension()[1])
-                target = par_port
+                # In RECEIVE mode, DCLS_COMPARATOR_TEMPLATE handles parity comparison directly
+                # No need for r_<par_port> intermediate register
+                return ""
             else:
                 total_size = super()._extract_dimension()[0]
                 target = sig_port
 
-            # Use generate_verilog_assign with bit 0 flip by default
-            signal_list = [f"{target}[0]@ignore"] 
-            result_signal = f"r_{target}"
+                # Use generate_verilog_assign with bit 0 flip by default
+                signal_list = [f"{target}[0]@ignore"] 
+                result_signal = f"r_{target}"
 
-            return generate_verilog_assign(signal_list, total_size, target, control_signal, result_signal)
+                return generate_verilog_assign(signal_list, total_size, target, control_signal, result_signal)
         else:
             ip_port, ip_par_port =  self._extract_parity_signals_ip()
             mode = self._extract_drive_receive()

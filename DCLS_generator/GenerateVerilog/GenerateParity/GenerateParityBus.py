@@ -116,9 +116,9 @@ class GenerateBus(GenerateVerilog):
 
     # ------------------ Wire ------------------ #
     def _generate_wire_ip(self):
-        if not self.fault_list:
-            port_blk = f"\nreg [{int(self.bit_width/self.par_width)}-1:0] r_{self.ip_port}_PARITY;"
-        else:
+        port_blk = ""
+        if self.fault_list:
+            # Only create register for data signal if fault injection is enabled
             port_blk = f"\nreg [{self.bit_width}-1:0] r_{self.ip_port};"
         return port_blk
 
@@ -216,6 +216,9 @@ class GenerateBus(GenerateVerilog):
             # Just use the whole port
             portion = ""
             
+            # DEBUG
+            # print(f"DEBUG: ip_name={self.ip_name}, ip_err_port={self.ip_err_port}, drive_receive={self.drive_receive}, fault_sig_list={fault_sig_list}")
+            
             if fault_list:
                 fault_inj_blk += f"\n    if (r_{fault_inj_name}) begin"
                 for fault_sig in fault_sig_list:
@@ -223,16 +226,23 @@ class GenerateBus(GenerateVerilog):
                     fault_sig_name = fault_sig_split[0].strip()
                     fault_sig_dim  = "[" + fault_sig_split[1]
 
-                    if self.ip_err_port:
+                    # For RECEIVE mode (parity check), skip all logic as DCLS_COMPARATOR_TEMPLATE directly uses input parity
+                    if self.ip_err_port and self.drive_receive == "RECEIVE":
+                        # Skip register creation and assignment for receiver parity
+                        continue
+                    else:
                         fault_sig_declare.add(f"\nreg [{int(self.bit_width/self.par_width)-1}:0] r_{fault_sig_name};")
-
-                    fault_inj_blk += f"\n        r_{fault_sig_name}{portion} = {concat_2d(fault_sig_name, fault_sig_dim, self.bit_width)}{portion};"
+                        fault_inj_blk += f"\n        r_{fault_sig_name}{portion} = {concat_2d(fault_sig_name, fault_sig_dim, self.bit_width)}{portion};"
 
                 fault_inj_blk += f"\n    end else begin"
                 for fault_sig in fault_sig_list:
                     fault_sig_name = fault_sig.split("[")[0].strip()
 
-                    fault_inj_blk += f"\n        r_{fault_sig_name}{portion} = {fault_sig_name}{portion};"
+                    # Skip assignment for receiver parity in RECEIVE mode
+                    if self.ip_err_port and self.drive_receive == "RECEIVE":
+                        continue
+                    else:
+                        fault_inj_blk += f"\n        r_{fault_sig_name}{portion} = {fault_sig_name}{portion};"
                 fault_inj_blk += f"\n    end"
 
         return "".join(fault_sig_declare), fault_inj_blk
