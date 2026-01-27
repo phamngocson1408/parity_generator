@@ -275,11 +275,11 @@ class GenerateBus(GenerateVerilog):
             
             err_blk += f"    .ENERR_DCLS(r_ENERR_{self.ip_err_port}),\n"
             err_blk += f"    .FIERR_DCLS(r_FIERR_{self.ip_port}),\n"
-            err_blk += f"    .ERR_DCLS(w_AnyError_{self.ip_port}),\n"
-            err_blk += f"    .ERR_DCLS_B()\n"
+            err_blk += f"    .ERR_DCLS({self.ip_err_port}),\n"
+            err_blk += f"    .ERR_DCLS_B({self.ip_err_port}_B)\n"
             err_blk += f");\n"
 
-            GenerateBus.ip_bus_par_list[self.ip_name][self.ip_err_port].append(f"w_AnyError_{self.ip_port}")
+            # No longer need to track w_AnyError_ since we're directly connecting to output ports
         return err_blk
 
     # def _generate_error_check_bus(self) -> str:
@@ -298,31 +298,9 @@ class GenerateBus(GenerateVerilog):
     #     return err_blk
 
     def _generate_error(self, ip_name: str, clk: str, rst: str, is_err_dup: bool):
-        err_blk = ""
-
-        for ip_err_port in GenerateBus.ip_bus_par_list[ip_name]:
-            # Not err but ... :)
-            err_blk += generate_synchronizer(clk=clk, rst=rst, signal=f"EN{ip_err_port}")
-
-            err_blk += f"\nwire w_AnyError_{ip_err_port};"
-            err_blk += f"\nassign w_AnyError_{ip_err_port} ="
-            for error in GenerateBus.ip_bus_par_list[ip_name][ip_err_port]:
-                err_blk += f" {error} |"
-            err_blk = err_blk[:-2] + ";\n"
-
-            err_blk += (
-                f"BOS_ERROR_DOUBLE u_parity_err_{ip_err_port.lower()} (\n"
-                f"    .I_CLK    ({clk}),\n"
-                f"    .I_RESETN ({rst}),\n"
-                f"    .I_ERR_EN (w_AnyError_{ip_err_port}),\n"
-#                f"    .I_ERR_CLR(1'b0),\n"
-                f"    .I_ERR_CLR(r_EN{ip_err_port}),\n"
-                f"    .O_ERR    ({ip_err_port}),\n"
-                f"    .O_ERR_B  ({ip_err_port}_B)\n"
-                f");\n"
-            )
-
-        return err_blk
+        # BOS_ERROR_DOUBLE module is no longer needed - error ports are directly connected
+        # from DCLS_COMPARATOR_TEMPLATE output (ERR_DCLS and ERR_DCLS_B)
+        return ""
 
     # --------------------------------------------
     # WRAPPER
