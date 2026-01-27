@@ -67,7 +67,8 @@ class GenerateBus(GenerateVerilog):
         self.ip_name = Parity_INFOExtractor._extract_ip_name()
         self.ip_err_port, self.ip_err_dup = Parity_INFOExtractor._extract_error_port_ip()
         self.drive_receive = Parity_INFOExtractor._extract_drive_receive()
-        # BUS - REMOVED: BUS columns have been removed from INFO file
+        self.comparator_input_width = Parity_INFOExtractor._extract_comparator_input_width()
+        self.comparator_depth = Parity_INFOExtractor._extract_comparator_depth()        # BUS - REMOVED: BUS columns have been removed from INFO file
         # self.bus_name = Parity_INFOExtractor._extract_bus_name()
         # self.bus_port, self.bus_par_port = Parity_INFOExtractor._extract_parity_signals_bus()
         # self.clk_bus, self.rst_bus = Parity_INFOExtractor._extract_bus_clock_reset()
@@ -242,16 +243,31 @@ class GenerateBus(GenerateVerilog):
         if self.drive_receive == "RECEIVE":
             err_blk += f"\n\nwire w_AnyError_{self.ip_port};"
 
+            # Use DCLS_COMPARATOR_TEMPLATE instead of reduction XOR
+            # Calculate parity width
+            par_width_bits = self.bit_width // self.par_width
+            
+            err_blk += f"\nDCLS_COMPARATOR_TEMPLATE #(\n"
+            err_blk += f"    .DATA_WIDTH({par_width_bits}),\n"
+            err_blk += f"    .MAX_INPUT_WIDTH({self.comparator_input_width}),\n"
+            err_blk += f"    .NUM_OR_STAGES({self.comparator_depth})\n"
+            err_blk += f") u_comparator_{self.ip_port.lower()} (\n"
+            err_blk += f"    .CLK({self.clk_ip}),\n"
+            err_blk += f"    .RESETN({self.rst_ip}),\n"
+            err_blk += f"    .DATA_IN_A({self.ip_par_port}),\n"
+            
+            # Calculate expected parity
             sliced_dimension = split_dimension(self.bit_width, self.par_width)
-            # Create calculated parity bus
-            err_blk += f"\nwire [{len(sliced_dimension)-1}:0] w_calculated_parity_{self.ip_port};"
-            err_blk += f"\nassign w_calculated_parity_{self.ip_port} = {{"
+            err_blk += f"    .DATA_IN_B({{ "
             for i in range(len(sliced_dimension)-1, -1, -1):  # from high to low
                 err_blk += f"w_{self.ip_port.lower()}_parity_{i}, "
-            err_blk = err_blk[:-2] + "};\n"  # remove last comma
-
-            # Reduction OR of (calculated ^ received)
-            err_blk += f"\nassign w_AnyError_{self.ip_port} = |(w_calculated_parity_{self.ip_port} ^ r_{self.ip_par_port});\n"
+            err_blk = err_blk[:-2] + f" }}),\n"
+            
+            err_blk += f"    .ENERR_DCLS(r_ENERR_{self.ip_err_port}),\n"
+            err_blk += f"    .FIERR_DCLS(r_FIERR_{self.ip_port}),\n"
+            err_blk += f"    .ERR_DCLS(w_AnyError_{self.ip_port}),\n"
+            err_blk += f"    .ERR_DCLS_B()\n"
+            err_blk += f");\n"
 
             GenerateBus.ip_bus_par_list[self.ip_name][self.ip_err_port].append(f"w_AnyError_{self.ip_port}")
         return err_blk

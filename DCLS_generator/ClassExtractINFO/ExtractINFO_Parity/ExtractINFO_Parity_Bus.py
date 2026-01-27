@@ -89,6 +89,18 @@ class ExtractINFO_Parity_Bus(ExtractINFO_Parity):
         ip_par_port = self.info_dict["PARITY PORT NAME"].strip()
         return ip_port, ip_par_port
 
+    def _extract_comparator_input_width(self):
+        width = self.info_dict.get("COMPARATOR INPUT WIDTH", "32").strip()
+        if width == "":
+            width = "32"
+        return int(width)
+
+    def _extract_comparator_depth(self):
+        depth = self.info_dict.get("COMPARATOR DEPTH", "0").strip()
+        if depth == "":
+            depth = "0"
+        return int(depth)
+
     def _extract_error_port_ip(self):
         # ip_err_port decide the direction of the parity check
         # 0: IP->BUS, output IP parity
