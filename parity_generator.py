@@ -350,7 +350,7 @@ if __name__ == "__main__":
                     print(bcolors.OKGREEN + f"Finished swapping original with paritied module {par_dir}" + bcolors.ENDC)
 
                     par_dir = remove_after_pattern(
-                        "/".join(top_file_dir.split('/')[:-1])) + f"/SAFETY/{file_name}_PARITY.{extension}"
+                        "/".join(top_file_dir.split('/')[:-1])) + f"/SAFETY/{file_name}_PARITY_NEW.{extension}"
                     par_file = open(par_dir, 'w')
                     par_file.write(Parity_generator._generate_module_ip(ip))
                     print(bcolors.OKGREEN + f"Finished creating parity module {par_dir}" + bcolors.ENDC)
