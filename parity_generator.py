@@ -41,6 +41,7 @@ if __name__ == "__main__":
     parser.add_argument('-type', type=str, default='SAFETY.PARITY', help='Parity scheme type')
     parser.add_argument("-info", type=str, help="INFO file path")
     parser.add_argument("-group", type=str, default='ALL', help="GROUP filter: comma-separated group names or 'ALL' for all groups")
+    parser.add_argument("-gen-top", type=str, default='YES', help="Generate top wrapper module (YES/NO)")
     args = parser.parse_args()
 
     # file_path = "./DCLS_generator/[INFO]_PARITY_TEMPLATE.xlsx"
@@ -56,6 +57,9 @@ if __name__ == "__main__":
         selected_groups = None  # None means all groups
     else:
         selected_groups = set([g.strip() for g in args.group.split(',')])
+    
+    # Parse gen_top flag
+    gen_top = args.gen_top.upper() == 'YES'
     
     def filter_by_group(info_dict_list, selected_groups):
         """Filter info_dict_list by GROUP column if selected_groups is specified"""
@@ -343,11 +347,14 @@ if __name__ == "__main__":
                     file_name = top_file_dir.split('/')[-1][:-2] if top_file_dir.endswith('.v') else \
                     top_file_dir.split('/')[-1][:-3]
                     extension = top_file_dir.split('.')[-1]
-                    par_dir = remove_after_pattern(
-                        "/".join(top_file_dir.split('/')[:-1])) + f"/SAFETY/{file_name}_NEW.{extension}"
-                    par_file = open(par_dir, 'w')
-                    par_file.write(before_top_file_contents + top_file_contents + after_top_file_contents)
-                    print(bcolors.OKGREEN + f"Finished swapping original with paritied module {par_dir}" + bcolors.ENDC)
+                    
+                    # Generate top wrapper only if gen_top flag is set
+                    if gen_top:
+                        par_dir = remove_after_pattern(
+                            "/".join(top_file_dir.split('/')[:-1])) + f"/SAFETY/{file_name}_NEW.{extension}"
+                        par_file = open(par_dir, 'w')
+                        par_file.write(before_top_file_contents + top_file_contents + after_top_file_contents)
+                        print(bcolors.OKGREEN + f"Finished swapping original with paritied module {par_dir}" + bcolors.ENDC)
 
                     par_dir = remove_after_pattern(
                         "/".join(top_file_dir.split('/')[:-1])) + f"/SAFETY/{file_name}_PARITY_NEW.{extension}"
