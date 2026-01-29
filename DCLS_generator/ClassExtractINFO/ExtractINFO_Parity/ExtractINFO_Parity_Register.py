@@ -49,3 +49,8 @@ class ExtractINFO_Parity_Register(ExtractINFO_Parity):
         ip_name = self.info_dict["IP NAME"].strip()
         return ip_name
 
+    def _extract_signal_valid_name(self):
+        """Extract SIGNAL VALID NAME from INFO file. Returns empty string if not specified."""
+        signal_valid_name = self.info_dict.get("SIGNAL VALID NAME", "").strip()
+        return signal_valid_name
+

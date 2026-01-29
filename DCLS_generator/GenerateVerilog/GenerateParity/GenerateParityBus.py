@@ -67,6 +67,7 @@ class GenerateBus(GenerateVerilog):
         self.ip_name = Parity_INFOExtractor._extract_ip_name()
         self.ip_err_port, self.ip_err_dup = Parity_INFOExtractor._extract_error_port_ip()
         self.drive_receive = Parity_INFOExtractor._extract_drive_receive()
+        self.signal_valid_name = Parity_INFOExtractor._extract_signal_valid_name()
         self.comparator_input_width = Parity_INFOExtractor._extract_comparator_input_width()
         self.comparator_depth = Parity_INFOExtractor._extract_comparator_depth()        # BUS - REMOVED: BUS columns have been removed from INFO file
         # self.bus_name = Parity_INFOExtractor._extract_bus_name()
@@ -89,6 +90,8 @@ class GenerateBus(GenerateVerilog):
             port_blk += f"\n    input  [{self.bit_width // self.par_width}-1:0] {self.ip_par_port},"
         else:
             port_blk += f"\n    output [{self.bit_width // self.par_width}-1:0] {self.ip_par_port},"
+        if self.signal_valid_name:
+            port_blk += f"\n    input  {self.signal_valid_name},"
         return port_blk
 
     def _generate_port_ip_err(self):
@@ -132,18 +135,38 @@ class GenerateBus(GenerateVerilog):
 
         if self.drive_receive == "DRIVE":
             sliced_dimension = split_dimension(self.bit_width, self.par_width)
-            for i, sliced in enumerate(sliced_dimension):
-                if self.is_even:
-                    parity_blk += f"\nassign {self.ip_par_port}[{i}] = ^r_{self.ip_port}{sliced};"
-                else:
-                    parity_blk += f"\nassign {self.ip_par_port}[{i}] = ~(^r_{self.ip_port}{sliced});"
+            if self.signal_valid_name:
+                # Generate parity only when signal_valid is 1, else 0
+                for i, sliced in enumerate(sliced_dimension):
+                    if self.is_even:
+                        parity_blk += f"\nassign {self.ip_par_port}[{i}] = {self.signal_valid_name} ? (^r_{self.ip_port}{sliced}) : 1'b0;"
+                    else:
+                        parity_blk += f"\nassign {self.ip_par_port}[{i}] = {self.signal_valid_name} ? ~(^r_{self.ip_port}{sliced}) : 1'b0;"
+            else:
+                # Original behavior without SIGNAL VALID NAME
+                for i, sliced in enumerate(sliced_dimension):
+                    if self.is_even:
+                        parity_blk += f"\nassign {self.ip_par_port}[{i}] = ^r_{self.ip_port}{sliced};"
+                    else:
+                        parity_blk += f"\nassign {self.ip_par_port}[{i}] = ~(^r_{self.ip_port}{sliced});"
         elif self.drive_receive == "RECEIVE":
             sliced_dimension = split_dimension(self.bit_width, self.par_width)
-            for i, sliced in enumerate(sliced_dimension):
-                if self.is_even:
-                    parity_blk += f"\nwire w_{self.ip_port.lower()}_parity_{i} = ^{self.ip_port}{sliced};"
-                else:
-                    parity_blk += f"\nwire w_{self.ip_port.lower()}_parity_{i} = ~(^{self.ip_port}{sliced});"
+            
+            if self.signal_valid_name:
+                # Gate data with SIGNAL VALID NAME before calculating parity
+                parity_blk += f"\nwire [{self.bit_width}-1:0] w_{self.ip_port}_gated = {self.signal_valid_name} ? {self.ip_port} : {self.bit_width}'b0;"
+                for i, sliced in enumerate(sliced_dimension):
+                    if self.is_even:
+                        parity_blk += f"\nwire w_{self.ip_port.lower()}_parity_{i} = ^w_{self.ip_port}_gated{sliced};"
+                    else:
+                        parity_blk += f"\nwire w_{self.ip_port.lower()}_parity_{i} = ~(^w_{self.ip_port}_gated{sliced});"
+            else:
+                # Original behavior without SIGNAL VALID NAME
+                for i, sliced in enumerate(sliced_dimension):
+                    if self.is_even:
+                        parity_blk += f"\nwire w_{self.ip_port.lower()}_parity_{i} = ^{self.ip_port}{sliced};"
+                    else:
+                        parity_blk += f"\nwire w_{self.ip_port.lower()}_parity_{i} = ~(^{self.ip_port}{sliced});"
 
         return parity_blk + "\n"
 
@@ -273,7 +296,7 @@ class GenerateBus(GenerateVerilog):
                 err_blk += f"w_{self.ip_port.lower()}_parity_{i}, "
             err_blk = err_blk[:-2] + f" }}),\n"
             
-            err_blk += f"    .ENERR_DCLS(r_ENERR_{self.ip_err_port}),\n"
+            err_blk += f"    .ENERR_DCLS(r_EN{self.ip_err_port}),\n"
             err_blk += f"    .FIERR_DCLS(r_FIERR_{self.ip_port}),\n"
             err_blk += f"    .ERR_DCLS({self.ip_err_port}),\n"
             err_blk += f"    .ERR_DCLS_B({self.ip_err_port}_B)\n"
@@ -383,7 +406,11 @@ class GenerateBus(GenerateVerilog):
                     fierr_dup.add(fierr.split("[")[0])
             else:
                 module_blk += generate_synchronizer(clk=clk, rst=rst, signal=fierr)
-#        module_blk += generate_synchronizer(clk=clk, rst=rst, signal=f"EN{self.ip_err_port}") # for enerr
+        
+        # Add synchronizer for EN{ip_err_port} signal to create r_ENERR_{ip_err_port}
+        for ip_err_port in GenerateBus.ip_bus_par_list[ip_name]:
+            module_blk += generate_synchronizer(clk=clk, rst=rst, signal=f"EN{ip_err_port}")
+        
         module_blk += GenerateBus.ip_reg_blk[ip_name] + "\n"
         module_blk += "\nalways@(*) begin"
         # module_blk += GenerateBus.ip_sig_assign[ip_name]
@@ -526,10 +553,15 @@ class GenerateBus(GenerateVerilog):
         else:
             GenerateBus.original_outport[self.ip_name].append([f"[{self.bit_width}-1:0]", self.ip_port, ""])
             GenerateBus.extra_outport[self.ip_name].append([f"[{self.bit_width // self.par_width}-1:0]", self.ip_par_port, ""])
+        
         for fault_list in self.fault_list:
             # FIERR port is always 1 bit
             control_port_name = fault_list[0].split("[")[0]  # Get port name
             GenerateBus.extra_inport[self.ip_name].append(["", control_port_name, ""])
+        
+        # Add SIGNAL VALID NAME port if specified
+        if self.signal_valid_name:
+            GenerateBus.extra_inport[self.ip_name].append(["", self.signal_valid_name, ""])
 
         if self.ip_name in GenerateBus.ip_set:
             if self.ip_err_port:

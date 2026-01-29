@@ -69,6 +69,11 @@ class ExtractINFO_Parity_Signal(ExtractINFO_Parity):
         rst = self.info_dict["RECEIVER RESET"].strip()
         return clk, rst
 
+    def _extract_signal_valid_name(self):
+        """Extract SIGNAL VALID NAME from INFO file. Returns empty string if not specified."""
+        signal_valid_name = self.info_dict.get("SIGNAL VALID NAME", "").strip()
+        return signal_valid_name
+
     # --------------------------------------------
     # CHECK HUMAN ERROR
     # --------------------------------------------

@@ -49,6 +49,7 @@ class GenerateParity(GenerateVerilog):
         self.fault_list = Parity_INFOExtractor._extract_fault_injection()
         self.drv_name = Parity_INFOExtractor._extract_drv_name()
         self.rcv_name = Parity_INFOExtractor._extract_rcv_name()
+        self.signal_valid_name = Parity_INFOExtractor._extract_signal_valid_name()
         self.rcv_err_port, self.rcv_err_dup = Parity_INFOExtractor._extract_error_port_rcv()
         # Share across multiple rows
         self._init_generator()
@@ -69,8 +70,16 @@ class GenerateParity(GenerateVerilog):
         for i, sliced in enumerate(sliced_dimension):
             parity_blk += f"\n        r_{self.drv_par_port}[{i}] <= 0;"
         parity_blk += "\n    end else begin"
-        for i, sliced in enumerate(sliced_dimension):
-            parity_blk += f"\n        r_{self.drv_par_port}[{i}] <= ^w_{self.drv_port}{sliced};"
+        
+        if self.signal_valid_name:
+            # Generate parity only when signal_valid is 1, else 0
+            for i, sliced in enumerate(sliced_dimension):
+                parity_blk += f"\n        r_{self.drv_par_port}[{i}] <= {self.signal_valid_name} ? (^w_{self.drv_port}{sliced}) : 1'b0;"
+        else:
+            # Original behavior without SIGNAL VALID NAME
+            for i, sliced in enumerate(sliced_dimension):
+                parity_blk += f"\n        r_{self.drv_par_port}[{i}] <= ^w_{self.drv_port}{sliced};"
+        
         parity_blk += ("\n    end"
                        "\nend")
 
@@ -146,8 +155,16 @@ class GenerateParity(GenerateVerilog):
             parity_blk += f"\nwire w_{self.rcv_port}_parity_{i};"
         parity_blk += "\n"
 
-        for i, sliced in enumerate(sliced_dimension):
-            parity_blk += f"\nassign w_{self.rcv_port}_parity_{i} = ^r_{self.rcv_port}{sliced};"
+        if self.signal_valid_name:
+            # Gate data with SIGNAL VALID NAME before calculating parity
+            parity_blk += f"wire [{self.bit_width}-1:0] w_{self.rcv_port}_gated = {self.signal_valid_name} ? r_{self.rcv_port} : {self.bit_width}'b0;"
+            parity_blk += "\n"
+            for i, sliced in enumerate(sliced_dimension):
+                parity_blk += f"\nassign w_{self.rcv_port}_parity_{i} = ^w_{self.rcv_port}_gated{sliced};"
+        else:
+            # Original behavior without SIGNAL VALID NAME
+            for i, sliced in enumerate(sliced_dimension):
+                parity_blk += f"\nassign w_{self.rcv_port}_parity_{i} = ^r_{self.rcv_port}{sliced};"
 
         parity_blk += "\n"
         return parity_blk
@@ -346,6 +363,10 @@ class GenerateParity(GenerateVerilog):
         GenerateParity.original_outport_drv[self.drv_name].append([f"[{self.bit_width}-1:0]", self.drv_port, ""])
         GenerateParity.extra_outport_drv[self.drv_name].append([f"[{self.bit_width//self.par_width}-1:0]", self.drv_par_port, ""])
         GenerateParity.extra_inport_drv[self.drv_name].append([f"", self.fault_list[0], ""])
+        
+        # Add SIGNAL VALID NAME port if specified
+        if self.signal_valid_name:
+            GenerateParity.extra_inport_drv[self.drv_name].append([f"", self.signal_valid_name, ""])
 
         # Receiver
         if self.rcv_name not in GenerateParity.rcv_set:
@@ -381,6 +402,10 @@ class GenerateParity(GenerateVerilog):
         GenerateParity.extra_outport_rcv[self.rcv_name].append(["", self.rcv_err_port, ""])
         if self.rcv_err_dup:
             GenerateParity.extra_outport_rcv[self.rcv_name].append(["", f"{self.rcv_err_port}_B", ""])
+        
+        # Add SIGNAL VALID NAME port if specified
+        if self.signal_valid_name:
+            GenerateParity.extra_inport_rcv[self.rcv_name].append([f"", self.signal_valid_name, ""])
 
 
 def split_dimension(size: int, part_size: int) -> list:

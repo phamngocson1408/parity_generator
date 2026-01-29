@@ -43,6 +43,7 @@ class GenerateRegister(GenerateVerilog):
 
         self.ip_name = Parity_INFOExtractor._extract_ip_name()
         self.val_sig, self.reg_sig = Parity_INFOExtractor._extract_signal()
+        self.signal_valid_name = Parity_INFOExtractor._extract_signal_valid_name()
         self.reg_err_port, self.reg_err_dup = Parity_INFOExtractor._extract_err_port_reg()
         self.is_even = Parity_INFOExtractor._is_even()
         # Share across multiple rows
@@ -78,8 +79,16 @@ class GenerateRegister(GenerateVerilog):
         parity_blk += f"\nwire [{len(sliced_dimension)}-1:0] w_{self.reg_name}_par;"
         parity_blk += "\n"
 
-        for i, sliced in enumerate(sliced_dimension):
-            parity_blk += f"\nassign w_{self.reg_name}_par[{i}] = ^{self.reg_name}{sliced};"
+        if self.signal_valid_name:
+            # Gate data with SIGNAL VALID NAME before calculating parity
+            parity_blk += f"wire [{self.bit_width}-1:0] w_{self.reg_name}_gated = {self.signal_valid_name} ? {self.reg_name} : {self.bit_width}'b0;"
+            parity_blk += "\n"
+            for i, sliced in enumerate(sliced_dimension):
+                parity_blk += f"\nassign w_{self.reg_name}_par[{i}] = ^w_{self.reg_name}_gated{sliced};"
+        else:
+            # Original behavior without SIGNAL VALID NAME
+            for i, sliced in enumerate(sliced_dimension):
+                parity_blk += f"\nassign w_{self.reg_name}_par[{i}] = ^{self.reg_name}{sliced};"
 
         parity_blk += "\n"
         return parity_blk
@@ -96,8 +105,16 @@ class GenerateRegister(GenerateVerilog):
                        f"\n    if (!{self.rst})"
                        f"\n        {self.reg_par_name} <= 0;"
                        f"\n    else if ({self.reg_name}_valid) begin")
-        for i, sliced in enumerate(sliced_dimension):
-            parity_blk += f"\n        {self.reg_par_name}[{i}] <= ^{self.reg_sig}{sliced};"
+        
+        if self.signal_valid_name:
+            # Generate parity only when signal_valid is 1, else 0
+            for i, sliced in enumerate(sliced_dimension):
+                parity_blk += f"\n        {self.reg_par_name}[{i}] <= {self.signal_valid_name} ? (^{self.reg_sig}{sliced}) : 1'b0;"
+        else:
+            # Original behavior without SIGNAL VALID NAME
+            for i, sliced in enumerate(sliced_dimension):
+                parity_blk += f"\n        {self.reg_par_name}[{i}] <= ^{self.reg_sig}{sliced};"
+        
         parity_blk += "\n    end\nend"
 
         parity_blk += "\n"
@@ -130,6 +147,7 @@ class GenerateRegister(GenerateVerilog):
         err_blk = ""
         err_blk += f"\nwire w_AnyError_{self.reg_name};"
         err_blk += f"\nassign w_AnyError_{self.reg_name} = ("
+        
         sliced_dimension = split_dimension(self.bit_width, self.par_width)
         for i, sliced in enumerate(sliced_dimension):
             err_blk += f"\n    (w_{self.reg_par_name}[{i}] ^ w_{self.reg_name}_par[{i}]) |"
@@ -277,6 +295,10 @@ class GenerateRegister(GenerateVerilog):
         GenerateRegister.original_inport[self.ip_name].append([f"[{self.bit_width-1}:0]", self.reg_name, ""])
         GenerateRegister.original_inport[self.ip_name].append([f"[{self.bit_width-1}:0]", self.reg_sig, ""])
         GenerateRegister.original_inport[self.ip_name].append([f"", f"{self.reg_name}_valid", ""])
+        
+        # Add SIGNAL VALID NAME port if specified
+        if self.signal_valid_name:
+            GenerateRegister.extra_inport[self.ip_name].append([f"", self.signal_valid_name, ""])
 
         if self.reg_err_port:
             try:
