@@ -40,6 +40,7 @@ if __name__ == "__main__":
     parser.add_argument('-inst', type=str, default='BOS_BUS_PARITY_AXI_M', help='Parity instance name')
     parser.add_argument('-type', type=str, default='SAFETY.PARITY', help='Parity scheme type')
     parser.add_argument("-info", type=str, help="INFO file path")
+    parser.add_argument("-group", type=str, default='ALL', help="GROUP filter: comma-separated group names or 'ALL' for all groups")
     args = parser.parse_args()
 
     # file_path = "./DCLS_generator/[INFO]_PARITY_TEMPLATE.xlsx"
@@ -50,9 +51,32 @@ if __name__ == "__main__":
         parity_scheme_list = ["SAFETY.PARITY"]
     # parity_scheme = "SAFETY.REGISTER PARITY"
 
+    # Parse group filter
+    if args.group.upper() == 'ALL':
+        selected_groups = None  # None means all groups
+    else:
+        selected_groups = set([g.strip() for g in args.group.split(',')])
+    
+    def filter_by_group(info_dict_list, selected_groups):
+        """Filter info_dict_list by GROUP column if selected_groups is specified"""
+        if selected_groups is None:
+            return info_dict_list
+        
+        filtered_list = []
+        for info_dict in info_dict_list:
+            group_value = info_dict.get("GROUP", "").strip()
+            if group_value in selected_groups:
+                filtered_list.append(info_dict)
+        
+        if not filtered_list:
+            print(bcolors.WARNING + f"Warning: No rows found for groups: {selected_groups}" + bcolors.ENDC)
+        
+        return filtered_list
+
     for parity_scheme in parity_scheme_list:
         INFOExtractor = ExtractINFO(file_path, parity_scheme)
         info_dict_list = INFOExtractor._read_info_multi()
+        info_dict_list = filter_by_group(info_dict_list, selected_groups)
         if parity_scheme == "SAFETY.SIGNAL PARITY":
             ip_filelist_dict_drv = {}
             ip_filelist_dict_rcv = {}

@@ -9,7 +9,9 @@
             "console": "integratedTerminal",
             "args": [
                 "-info",
-                "./[INFO]_BOS_AXICRYPT.safety.xlsx"
+                "./[INFO]_BOS_AXICRYPT.safety.xlsx",
+                "-group",
+                "A"
             ],
             "cwd": "${workspaceFolder}",
             "env": {
