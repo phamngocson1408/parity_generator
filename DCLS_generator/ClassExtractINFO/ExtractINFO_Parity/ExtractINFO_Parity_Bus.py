@@ -13,17 +13,21 @@ class ExtractINFO_Parity_Bus(ExtractINFO_Parity):
 
         if fault_gen == "YES":
             sig_port = self.info_dict["SIGNAL PORT NAME"].strip()
-            # Automatically generate port name: FIERR_<SIGNAL PORT NAME>
-            # FIERR port is always 1 bit
-            control_port = f"FIERR_{sig_port}"
-            
             mode = self._extract_drive_receive()
-            # FIERR (Fault Injection Error) ports are ONLY for RECEIVE signals
-            # DRIVE signals should not have FIERR ports
+            
+            # FIERR (Fault Injection Error) ports are ONLY for RECEIVE signals WITH ERROR PORT
+            # For consolidated comparator: only the signal with ERROR PORT gets FIERR input
+            # Signals without ERROR PORT will share ERROR PORT and FIERR from first signal
             if mode == "RECEIVE":
-                par_port = self.info_dict["PARITY PORT NAME"].strip()
-                # Format: [[control_port, [target_bit]]]
-                fault_list = [[control_port, [f"{par_port}[0]"]]]
+                err_port = self.info_dict.get("ERROR PORT", "")
+                # Only create FIERR port if this signal has an ERROR PORT
+                if err_port and str(err_port).strip().upper() != "NAN":
+                    # Automatically generate port name: FIERR_<SIGNAL PORT NAME>
+                    # FIERR port is always 1 bit
+                    control_port = f"FIERR_{sig_port}"
+                    par_port = self.info_dict["PARITY PORT NAME"].strip()
+                    # Format: [[control_port, [target_bit]]]
+                    fault_list = [[control_port, [f"{par_port}[0]"]]]
             # For DRIVE mode, no FIERR port needed - return empty list
                 
         return fault_list

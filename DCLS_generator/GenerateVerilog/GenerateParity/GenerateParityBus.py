@@ -31,6 +31,11 @@ class GenerateBus(GenerateVerilog):
     ip_drive_receive_mode = {}  # Track DRIVE or RECEIVE mode for each IP
     ip_first_err_port = {}  # Track the first error port per IP (GROUP)
     ip_group = {}  # Track GROUP information per IP
+    
+    # For consolidating RECEIVE signals into single comparator
+    ip_receive_ports = {}  # Track all RECEIVE ports for each IP
+    ip_receive_par_ports = {}  # Track all parity ports for RECEIVE signals
+    ip_receive_par_widths = {}  # Track parity width for each RECEIVE signal
 
     # BUS
     bus_par_blk = {}
@@ -325,6 +330,58 @@ class GenerateBus(GenerateVerilog):
 
     #         GenerateBus.ip_bus_par_list[self.bus_name][self.bus_err_port].append(f"w_AnyError_{self.bus_port}")
     #     return err_blk
+    
+    def _generate_consolidated_comparator(self, ip_name: str, clk: str, rst: str, first_err_port: str, is_err_dup: bool) -> str:
+        """Generate a single DCLS_COMPARATOR_TEMPLATE for all RECEIVE ports"""
+        err_blk = ""
+        receive_ports = GenerateBus.ip_receive_ports.get(ip_name, [])
+        receive_par_ports = GenerateBus.ip_receive_par_ports.get(ip_name, [])
+        receive_par_widths = GenerateBus.ip_receive_par_widths.get(ip_name, [])
+        
+        if receive_ports:
+            # Consolidate all RECEIVE signal parity into one comparator
+            err_blk += f"\n\nwire w_AnyError_{ip_name};"
+            
+            # Calculate total parity width (sum of all RECEIVE signal parity widths)
+            total_par_width = sum(receive_par_widths) if receive_par_widths else 0
+            
+            if total_par_width > 0:
+                err_blk += f"\nDCLS_COMPARATOR_TEMPLATE #(\n"
+                err_blk += f"    .DATA_WIDTH({total_par_width}),\n"
+                err_blk += f"    .MAX_INPUT_WIDTH({self.comparator_input_width}),\n"
+                err_blk += f"    .NUM_OR_STAGES({self.comparator_depth})\n"
+                err_blk += f") u_comparator_{ip_name.lower()} (\n"
+                err_blk += f"    .CLK({clk}),\n"
+                err_blk += f"    .RESETN({rst}),\n"
+                
+                # Concatenate all RECEIVE parity ports
+                err_blk += "    .DATA_IN_A({ "
+                for i, par_port in enumerate(receive_par_ports):
+                    if i > 0:
+                        err_blk += ", "
+                    err_blk += par_port
+                err_blk += "}),\n"
+                
+                # Concatenate all calculated parity bits from all RECEIVE signals
+                err_blk += "    .DATA_IN_B({ "
+                for port_idx, ip_port in enumerate(receive_ports):
+                    if port_idx > 0:
+                        err_blk += ", "
+                    par_width = receive_par_widths[port_idx]
+                    # Generate parity bits from high to low
+                    for i in range(par_width - 1, -1, -1):
+                        if i < par_width - 1:
+                            err_blk += ", "
+                        err_blk += f"w_{ip_port.lower()}_parity_{i}"
+                err_blk += " }),\n"
+                
+                err_blk += f"    .ENERR_DCLS(r_EN{first_err_port}),\n"
+                err_blk += f"    .FIERR_DCLS(r_FIERR_{receive_ports[0]}),\n"
+                err_blk += f"    .ERR_DCLS({first_err_port}),\n"
+                err_blk += f"    .ERR_DCLS_B({first_err_port}_B)\n"
+                err_blk += f");\n"
+        
+        return err_blk
 
     def _generate_error(self, ip_name: str, clk: str, rst: str, is_err_dup: bool):
         # BOS_ERROR_DOUBLE module is no longer needed - error ports are directly connected
@@ -357,11 +414,22 @@ class GenerateBus(GenerateVerilog):
                 port_to_add = ["", control_port_name, ""]
                 if port_to_add not in GenerateBus.extra_inport[self.ip_name]:
                     GenerateBus.extra_inport[self.ip_name].append(port_to_add)
+            
+            # Collect RECEIVE port information for consolidated comparator
+            # Include ALL RECEIVE signals in the comparator (they share the same error port)
+            if self.ip_port not in GenerateBus.ip_receive_ports[self.ip_name]:
+                GenerateBus.ip_receive_ports[self.ip_name].append(self.ip_port)
+                GenerateBus.ip_receive_par_ports[self.ip_name].append(self.ip_par_port)
+                # Calculate parity width for this signal: bit_width / par_width
+                par_width_bits = self.bit_width // self.par_width
+                if self.ip_name not in GenerateBus.ip_receive_par_widths:
+                    GenerateBus.ip_receive_par_widths[self.ip_name] = []
+                GenerateBus.ip_receive_par_widths[self.ip_name].append(par_width_bits)
         # else: DRIVE mode - no fault injection
         GenerateBus.ip_par_blk[self.ip_name] += self._generate_parity_ip()
 
-        # GenerateBus.ip_bus_par_blk[self.ip_name] += self._generate_parity_bus()  # REMOVED: BUS columns removed
-        GenerateBus.ip_bus_err_blk[self.ip_name] += self._generate_error_check_ip()
+        # Note: Error checking is now consolidated into single comparator in _generate_module_ip()
+        # GenerateBus.ip_bus_err_blk[self.ip_name] += self._generate_error_check_ip()  # CONSOLIDATED
 
     # def _wrapper_bus(self) -> None:
     #     GenerateBus.bus_port_blk[self.bus_name] += self._generate_port_bus()
@@ -483,7 +551,10 @@ class GenerateBus(GenerateVerilog):
 
         module_blk += GenerateBus.ip_par_blk[ip_name]
         module_blk += GenerateBus.ip_bus_par_blk[ip_name]
-        module_blk += GenerateBus.ip_bus_err_blk[ip_name]
+        # Generate consolidated comparator for all RECEIVE signals
+        first_err_port = GenerateBus.ip_first_err_port.get(ip_name, "")
+        if first_err_port:
+            module_blk += self._generate_consolidated_comparator(ip_name, clk, rst, first_err_port, GenerateBus.is_error_dup_ip[ip_name])
         module_blk += self._generate_error(ip_name, clk, rst, GenerateBus.is_error_dup_ip[ip_name])
 
         module_blk += "\nendmodule\n\n"
@@ -589,6 +660,10 @@ class GenerateBus(GenerateVerilog):
             GenerateBus.ip_bus_err_blk[self.ip_name] = ""
             GenerateBus.ip_clk_rst_blk[self.ip_name] = {"clk": self.clk_ip, "rst": self.rst_ip}
             GenerateBus.ip_fierr_map[self.ip_name] = {}
+            
+            # Initialize RECEIVE ports tracking
+            GenerateBus.ip_receive_ports[self.ip_name] = []
+            GenerateBus.ip_receive_par_ports[self.ip_name] = []
 
             # Init BUS - REMOVED: BUS columns removed
             # GenerateBus.bus_clk_rst_blk[self.bus_name] = {"clk": self.clk_bus, "rst": self.rst_bus}
