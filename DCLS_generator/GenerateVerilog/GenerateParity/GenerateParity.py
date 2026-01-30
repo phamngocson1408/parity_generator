@@ -231,7 +231,7 @@ class GenerateParity(GenerateVerilog):
         GenerateParity.drv_wire_blk[self.drv_name] += self._generate_wire_drv()
         GenerateParity.drv_sig_assign[self.drv_name] += self._assign_signal()
         GenerateParity.drv_par_blk[self.drv_name] += self._generate_parity_drv()
-        GenerateParity.fault_inj_blk[self.drv_name] += self._inject_error()
+        # NOTE: Fault injection disabled for driver signals - only kept for receiver signals
 
     def _list_port_drv(self):
         port_list = {}
@@ -268,17 +268,20 @@ class GenerateParity(GenerateVerilog):
 
             module_blk += f"module {drv_name}_SIGNAL_PARITY_GEN ("
             module_blk += f"\n    input {clk}, {rst},"
-            for fierr, _ in GenerateParity.drv_fierr_map[drv_name].items():
-                module_blk += f"\n    input {fierr},"
+            # NOTE: Fault injection disabled for driver signals - fierr ports removed
+            # for fierr, _ in GenerateParity.drv_fierr_map[drv_name].items():
+            #     module_blk += f"\n    input {fierr},"
             module_blk += GenerateParity.drv_port_blk[drv_name]
             module_blk = module_blk[:-1] + "\n);\n"
 
             module_blk += GenerateParity.drv_wire_blk[drv_name]
-            for fierr, _ in GenerateParity.drv_fierr_map[drv_name].items():
-                module_blk += generate_synchronizer(clk=clk, rst=rst, signal=fierr)
+            # NOTE: Fault injection disabled for driver signals - synchronizer for fierr removed
+            # for fierr, _ in GenerateParity.drv_fierr_map[drv_name].items():
+            #     module_blk += generate_synchronizer(clk=clk, rst=rst, signal=fierr)
             module_blk += "\nalways@(*) begin"
             module_blk += GenerateParity.drv_sig_assign[drv_name]
-            module_blk += GenerateParity.fault_inj_blk[drv_name]
+            # NOTE: Fault injection disabled for driver signals - fault injection logic removed
+            # module_blk += GenerateParity.fault_inj_blk[drv_name]
             module_blk += "\nend\n"
             module_blk += GenerateParity.drv_par_blk[drv_name]
             module_blk += "\nendmodule\n\n"
@@ -354,15 +357,17 @@ class GenerateParity(GenerateVerilog):
             GenerateParity.fault_inj_blk[self.drv_name] = ""
 
             GenerateParity.drv_fierr_map[self.drv_name] = {}
-        if self.fault_list:
-            try:
-                GenerateParity.drv_fierr_map[self.drv_name][self.fault_list[0]].add({self.drv_port})
-            except:
-                GenerateParity.drv_fierr_map[self.drv_name][self.fault_list[0]] = {self.drv_port}
+        # NOTE: Fault injection disabled for driver signals - fierr port not added to driver
+        # if self.fault_list:
+        #     try:
+        #         GenerateParity.drv_fierr_map[self.drv_name][self.fault_list[0]].add({self.drv_port})
+        #     except:
+        #         GenerateParity.drv_fierr_map[self.drv_name][self.fault_list[0]] = {self.drv_port}
 
         GenerateParity.original_outport_drv[self.drv_name].append([f"[{self.bit_width}-1:0]", self.drv_port, ""])
         GenerateParity.extra_outport_drv[self.drv_name].append([f"[{self.bit_width//self.par_width}-1:0]", self.drv_par_port, ""])
-        GenerateParity.extra_inport_drv[self.drv_name].append([f"", self.fault_list[0], ""])
+        # NOTE: Fault injection disabled for driver signals - fierr port not added to driver
+        # GenerateParity.extra_inport_drv[self.drv_name].append([f"", self.fault_list[0], ""])
         
         # Add SIGNAL VALID NAME port if specified
         if self.signal_valid_name:

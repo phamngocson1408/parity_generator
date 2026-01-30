@@ -27,6 +27,7 @@ class GenerateBus(GenerateVerilog):
     # Tracking common special signals that are used for multiple signals
     ip_fierr_map = {}
     is_error_dup_ip = {}
+    ip_drive_receive_mode = {}  # Track DRIVE or RECEIVE mode for each IP
 
     # BUS
     bus_par_blk = {}
@@ -338,7 +339,10 @@ class GenerateBus(GenerateVerilog):
             # GenerateBus.fault_inj_blk[self.ip_name] += self._inject_error()
             # GenerateBus.fault_inj_blk[self.ip_name] += self._inject_error_checker()
         # GenerateBus.fault_inj_blk[self.ip_name] += "".join(self._inject_error_checker()[1])
-        GenerateBus.fault_inj_blk[self.ip_name] += "\n\t" + self.pre_print_fierr
+        # NOTE: Fault injection disabled for driver signals - only kept for receiver signals
+        if self.drive_receive == "RECEIVE":
+            GenerateBus.fault_inj_blk[self.ip_name] += "\n\t" + self.pre_print_fierr
+        # else: DRIVE mode - no fault injection
         GenerateBus.ip_par_blk[self.ip_name] += self._generate_parity_ip()
 
         # GenerateBus.ip_bus_par_blk[self.ip_name] += self._generate_parity_bus()  # REMOVED: BUS columns removed
@@ -384,14 +388,17 @@ class GenerateBus(GenerateVerilog):
         # for ip_name in GenerateBus.ip_set:
         clk = GenerateBus.ip_clk_rst_blk[ip_name].get('clk')
         rst = GenerateBus.ip_clk_rst_blk[ip_name].get('rst')
+        drive_receive_mode = GenerateBus.ip_drive_receive_mode[ip_name]
 
         module_blk += f"module {ip_name}_IP_PARITY_GEN ("
         module_blk += f"\n    input {clk}, {rst},"
-        fierr_cnt = count_fierr_bit(GenerateBus.ip_fierr_map[ip_name])
-        for fierr, _ in GenerateBus.ip_fierr_map[ip_name].items():
-            cnt = fierr_cnt[fierr.split('[')[0].strip()]
-            fierr_declaration_set.add(f"\n    input [{cnt}-1:0] {fierr.split('[')[0].strip()},")
-            # module_blk += f"\n    input {fierr},"
+        # NOTE: Fault injection disabled for driver signals - fierr ports removed for DRIVE mode
+        if drive_receive_mode == "RECEIVE":
+            fierr_cnt = count_fierr_bit(GenerateBus.ip_fierr_map[ip_name])
+            for fierr, _ in GenerateBus.ip_fierr_map[ip_name].items():
+                cnt = fierr_cnt[fierr.split('[')[0].strip()]
+                fierr_declaration_set.add(f"\n    input [{cnt}-1:0] {fierr.split('[')[0].strip()},")
+                # module_blk += f"\n    input {fierr},"
         module_blk += "".join(fierr_declaration_set)
         for ip_err_port in GenerateBus.ip_bus_par_list[ip_name]:
             module_blk += GenerateBus.ip_err_port_blk[ip_err_port]
@@ -399,13 +406,15 @@ class GenerateBus(GenerateVerilog):
         module_blk = module_blk[:-1] + "\n);\n"
 
         module_blk += GenerateBus.ip_wire_blk[ip_name] + "\n"
-        for fierr, _ in GenerateBus.ip_fierr_map[ip_name].items():
-            if "[" in fierr:
-                if fierr.split("[")[0] not in fierr_dup:
-                    module_blk += generate_synchronizer(clk=clk, rst=rst, signal=fierr.split("[")[0], size=(self.bit_width/self.par_width))
-                    fierr_dup.add(fierr.split("[")[0])
-            else:
-                module_blk += generate_synchronizer(clk=clk, rst=rst, signal=fierr)
+        # NOTE: Fault injection disabled for driver signals - synchronizer for fierr removed for DRIVE mode
+        if drive_receive_mode == "RECEIVE":
+            for fierr, _ in GenerateBus.ip_fierr_map[ip_name].items():
+                if "[" in fierr:
+                    if fierr.split("[")[0] not in fierr_dup:
+                        module_blk += generate_synchronizer(clk=clk, rst=rst, signal=fierr.split("[")[0], size=(self.bit_width/self.par_width))
+                        fierr_dup.add(fierr.split("[")[0])
+                else:
+                    module_blk += generate_synchronizer(clk=clk, rst=rst, signal=fierr)
         
         # Add synchronizer for EN{ip_err_port} signal to create r_ENERR_{ip_err_port}
         for ip_err_port in GenerateBus.ip_bus_par_list[ip_name]:
@@ -501,6 +510,7 @@ class GenerateBus(GenerateVerilog):
             GenerateBus.ip_set.add(self.ip_name)
             # GenerateBus.bus_set.add(self.bus_name)  # REMOVED: BUS columns removed
             GenerateBus.is_error_dup_ip[self.ip_name] = self.ip_err_dup
+            GenerateBus.ip_drive_receive_mode[self.ip_name] = self.drive_receive
             # GenerateBus.is_error_dup_bus[self.bus_name] = self.bus_err_dup  # REMOVED: BUS columns removed
             # Port list
             GenerateBus.original_inport[self.ip_name] = [["", self.clk_ip, ""], ["", self.rst_ip, ""]]
