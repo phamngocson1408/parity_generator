@@ -331,7 +331,10 @@ class GenerateBus(GenerateVerilog):
     # --------------------------------------------
     # This should be run once for each row
     def _wrapper_ip(self) -> None:
-        GenerateBus.ip_port_blk[self.ip_name] += self._generate_port_ip()
+        new_port_blk = self._generate_port_ip()
+        # Avoid adding duplicate ports to ip_port_blk
+        if new_port_blk not in GenerateBus.ip_port_blk[self.ip_name]:
+            GenerateBus.ip_port_blk[self.ip_name] += new_port_blk
         GenerateBus.ip_wire_blk[self.ip_name] += self._generate_wire_ip()
         GenerateBus.ip_reg_blk[self.ip_name] += self._inject_error_checker()[0]
         if not self.ip_err_port:
@@ -342,6 +345,13 @@ class GenerateBus(GenerateVerilog):
         # NOTE: Fault injection disabled for driver signals - only kept for receiver signals
         if self.drive_receive == "RECEIVE":
             GenerateBus.fault_inj_blk[self.ip_name] += "\n\t" + self.pre_print_fierr
+            # Add FIERR input ports only for RECEIVE mode signals
+            for fault_list in self.fault_list:
+                control_port_name = fault_list[0].split("[")[0]  # Get port name
+                # Check for duplicates before adding
+                port_to_add = ["", control_port_name, ""]
+                if port_to_add not in GenerateBus.extra_inport[self.ip_name]:
+                    GenerateBus.extra_inport[self.ip_name].append(port_to_add)
         # else: DRIVE mode - no fault injection
         GenerateBus.ip_par_blk[self.ip_name] += self._generate_parity_ip()
 
@@ -403,6 +413,18 @@ class GenerateBus(GenerateVerilog):
         for ip_err_port in GenerateBus.ip_bus_par_list[ip_name]:
             module_blk += GenerateBus.ip_err_port_blk[ip_err_port]
         module_blk += GenerateBus.ip_port_blk[ip_name]
+        # Add extra input ports (including FIERR ports for RECEIVE signals, SIGNAL VALID, etc.)
+        # Deduplicate by port name before adding
+        added_port_names = set()
+        extra_ports_set = set(tuple(lst) for lst in GenerateBus.extra_inport.get(ip_name, []))
+        for extra_port in extra_ports_set:
+            if extra_port[1] and extra_port[1] not in added_port_names:  # Port name is not empty and not yet added
+                # Skip ENERR and error ports - they are already added via ip_err_port_blk
+                if extra_port[1].startswith("EN") or extra_port[1].endswith("_BUS_PARITY") or extra_port[1].startswith("ERR_"):
+                    continue
+                port_width = f"[{extra_port[0]}-1:0] " if extra_port[0] else ""
+                module_blk += f"\n    input  {port_width}{extra_port[1]},"
+                added_port_names.add(extra_port[1])
         module_blk = module_blk[:-1] + "\n);\n"
 
         module_blk += GenerateBus.ip_wire_blk[ip_name] + "\n"
@@ -415,6 +437,17 @@ class GenerateBus(GenerateVerilog):
                         fierr_dup.add(fierr.split("[")[0])
                 else:
                     module_blk += generate_synchronizer(clk=clk, rst=rst, signal=fierr)
+        
+        # Add synchronizers for FIERR ports added to extra_inport (for RECEIVE mode signals)
+        # This is done outside of drive_receive_mode check because extra_inport may contain ports from multiple rows
+        extra_ports_set = set(tuple(lst) for lst in GenerateBus.extra_inport.get(ip_name, []))
+        for extra_port in extra_ports_set:
+            port_name = extra_port[1]
+            # Check if this is a FIERR port
+            if port_name and port_name.startswith("FIERR_"):
+                if port_name not in fierr_dup:
+                    module_blk += generate_synchronizer(clk=clk, rst=rst, signal=port_name)
+                    fierr_dup.add(port_name)
         
         # Add synchronizer for EN{ip_err_port} signal to create r_ENERR_{ip_err_port}
         for ip_err_port in GenerateBus.ip_bus_par_list[ip_name]:
@@ -554,24 +587,19 @@ class GenerateBus(GenerateVerilog):
                     GenerateBus.ip_fierr_map[self.ip_name][fault_list[0]] = {self.ip_port}
 
         if self.ip_err_port:
-            GenerateBus.original_inport[self.ip_name].append([f"[{self.bit_width}-1:0]", self.ip_port, ""])
-            GenerateBus.extra_inport[self.ip_name].append([f"[{self.bit_width // self.par_width}-1:0]", self.ip_par_port, ""])
-            GenerateBus.extra_outport[self.ip_name].append([f"", self.ip_err_port, ""])
-            GenerateBus.extra_inport[self.ip_name].append([f"", f"EN{self.ip_err_port}", ""])
+            if [f"[{self.bit_width}-1:0]", self.ip_port, ""] not in GenerateBus.original_inport[self.ip_name]:
+                GenerateBus.original_inport[self.ip_name].append([f"[{self.bit_width}-1:0]", self.ip_port, ""])
+            # NOTE: Do NOT add ip_par_port to extra_inport - it's already added by _generate_port_ip()
+            if [f"", f"EN{self.ip_err_port}", ""] not in GenerateBus.extra_inport[self.ip_name]:
+                GenerateBus.extra_inport[self.ip_name].append([f"", f"EN{self.ip_err_port}", ""])
+            if [f"", self.ip_err_port, ""] not in GenerateBus.extra_outport[self.ip_name]:
+                GenerateBus.extra_outport[self.ip_name].append([f"", self.ip_err_port, ""])
             if self.ip_err_dup:
-                GenerateBus.extra_outport[self.ip_name].append([f"", f"{self.ip_err_port}_B", ""])
+                if [f"", f"{self.ip_err_port}_B", ""] not in GenerateBus.extra_outport[self.ip_name]:
+                    GenerateBus.extra_outport[self.ip_name].append([f"", f"{self.ip_err_port}_B", ""])
         else:
             GenerateBus.original_outport[self.ip_name].append([f"[{self.bit_width}-1:0]", self.ip_port, ""])
             GenerateBus.extra_outport[self.ip_name].append([f"[{self.bit_width // self.par_width}-1:0]", self.ip_par_port, ""])
-        
-        for fault_list in self.fault_list:
-            # FIERR port is always 1 bit
-            control_port_name = fault_list[0].split("[")[0]  # Get port name
-            GenerateBus.extra_inport[self.ip_name].append(["", control_port_name, ""])
-        
-        # Add SIGNAL VALID NAME port if specified
-        if self.signal_valid_name:
-            GenerateBus.extra_inport[self.ip_name].append(["", self.signal_valid_name, ""])
 
         if self.ip_name in GenerateBus.ip_set:
             if self.ip_err_port:
