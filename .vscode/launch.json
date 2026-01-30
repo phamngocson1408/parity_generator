@@ -6,6 +6,7 @@
             "type": "debugpy",
             "request": "launch",
             "program": "${workspaceFolder}/parity_generator.py",
+            "python": "${workspaceFolder}/.venv39/bin/python",
             "console": "integratedTerminal",
             "args": [
                 "-info",

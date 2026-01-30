@@ -6,3 +6,5 @@ DCLS_generator/module_*/*
 *.swo
 *:Zone.Identifier
 axicrypt/
+.venv39/
+.venv/
