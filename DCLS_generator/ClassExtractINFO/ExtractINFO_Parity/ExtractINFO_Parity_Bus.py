@@ -18,12 +18,13 @@ class ExtractINFO_Parity_Bus(ExtractINFO_Parity):
             control_port = f"FIERR_{sig_port}"
             
             mode = self._extract_drive_receive()
+            # FIERR (Fault Injection Error) ports are ONLY for RECEIVE signals
+            # DRIVE signals should not have FIERR ports
             if mode == "RECEIVE":
                 par_port = self.info_dict["PARITY PORT NAME"].strip()
                 # Format: [[control_port, [target_bit]]]
                 fault_list = [[control_port, [f"{par_port}[0]"]]]
-            else:
-                fault_list = [[control_port, [f"{sig_port}[0]"]]]
+            # For DRIVE mode, no FIERR port needed - return empty list
                 
         return fault_list
 

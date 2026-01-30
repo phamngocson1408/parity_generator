@@ -1,6 +1,7 @@
 from DCLS_generator.GenerateVerilog.GenerateVerilog import GenerateVerilog
 from DCLS_generator.ClassExtractINFO.ExtractINFO_Parity.ExtractINFO_Parity_Bus import ExtractINFO_Parity_Bus
 from DCLS_generator.instanceModifier.modify_instance import *
+from DCLS_generator.common.prettycode import bcolors
 import warnings
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
@@ -28,6 +29,8 @@ class GenerateBus(GenerateVerilog):
     ip_fierr_map = {}
     is_error_dup_ip = {}
     ip_drive_receive_mode = {}  # Track DRIVE or RECEIVE mode for each IP
+    ip_first_err_port = {}  # Track the first error port per IP (GROUP)
+    ip_group = {}  # Track GROUP information per IP
 
     # BUS
     bus_par_blk = {}
@@ -70,7 +73,10 @@ class GenerateBus(GenerateVerilog):
         self.drive_receive = Parity_INFOExtractor._extract_drive_receive()
         self.signal_valid_name = Parity_INFOExtractor._extract_signal_valid_name()
         self.comparator_input_width = Parity_INFOExtractor._extract_comparator_input_width()
-        self.comparator_depth = Parity_INFOExtractor._extract_comparator_depth()        # BUS - REMOVED: BUS columns have been removed from INFO file
+        self.comparator_depth = Parity_INFOExtractor._extract_comparator_depth()
+        # Extract GROUP information from info_dict
+        self.group = Parity_INFOExtractor.info_dict.get("GROUP", "").strip()
+        # BUS - REMOVED: BUS columns have been removed from INFO file
         # self.bus_name = Parity_INFOExtractor._extract_bus_name()
         # self.bus_port, self.bus_par_port = Parity_INFOExtractor._extract_parity_signals_bus()
         # self.clk_bus, self.rst_bus = Parity_INFOExtractor._extract_bus_clock_reset()
@@ -591,6 +597,24 @@ class GenerateBus(GenerateVerilog):
             # GenerateBus.bus_wire_blk[self.bus_name] = ""
             # GenerateBus.bus_reg_blk[self.bus_name] = ""
             # GenerateBus.bus_sig_assign[self.bus_name] = ""
+        
+        # Check for duplicate error ports when we've already seen this IP
+        if self.ip_err_port and self.ip_name in GenerateBus.ip_first_err_port:
+            first_err_port = GenerateBus.ip_first_err_port[self.ip_name]
+            first_group = GenerateBus.ip_group[self.ip_name]
+            if self.ip_err_port != first_err_port:
+                # Warn about duplicate error ports
+                print(bcolors.WARNING + 
+                      f"Warning: GROUP {first_group} uses ERROR PORT '{first_err_port}'. " +
+                      f"GROUP {self.group} has different ERROR PORT '{self.ip_err_port}' which will be ignored. " +
+                      f"Only the first ERROR PORT '{first_err_port}' will be used." +
+                      bcolors.ENDC)
+                # Override to use the first error port
+                self.ip_err_port = first_err_port
+        elif self.ip_err_port:
+            # First time seeing an error port for this IP
+            GenerateBus.ip_first_err_port[self.ip_name] = self.ip_err_port
+            GenerateBus.ip_group[self.ip_name] = self.group
 
         # if self.fault_list and not self.ip_err_port:
         if self.fault_list:
