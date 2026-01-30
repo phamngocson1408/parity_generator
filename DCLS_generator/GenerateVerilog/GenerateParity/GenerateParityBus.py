@@ -150,16 +150,16 @@ class GenerateBus(GenerateVerilog):
                 # Generate parity only when signal_valid is 1, else 0
                 for i, sliced in enumerate(sliced_dimension):
                     if self.is_even:
-                        parity_blk += f"\nassign {self.ip_par_port}[{i}] = {self.signal_valid_name} ? (^r_{self.ip_port}{sliced}) : 1'b0;"
+                        parity_blk += f"\nassign {self.ip_par_port}[{i}] = {self.signal_valid_name} ? (^{self.ip_port}{sliced}) : 1'b0;"
                     else:
-                        parity_blk += f"\nassign {self.ip_par_port}[{i}] = {self.signal_valid_name} ? ~(^r_{self.ip_port}{sliced}) : 1'b0;"
+                        parity_blk += f"\nassign {self.ip_par_port}[{i}] = {self.signal_valid_name} ? ~(^{self.ip_port}{sliced}) : 1'b0;"
             else:
                 # Original behavior without SIGNAL VALID NAME
                 for i, sliced in enumerate(sliced_dimension):
                     if self.is_even:
-                        parity_blk += f"\nassign {self.ip_par_port}[{i}] = ^r_{self.ip_port}{sliced};"
+                        parity_blk += f"\nassign {self.ip_par_port}[{i}] = ^{self.ip_port}{sliced};"
                     else:
-                        parity_blk += f"\nassign {self.ip_par_port}[{i}] = ~(^r_{self.ip_port}{sliced});"
+                        parity_blk += f"\nassign {self.ip_par_port}[{i}] = ~(^{self.ip_port}{sliced});"
         elif self.drive_receive == "RECEIVE":
             sliced_dimension = split_dimension(self.bit_width, self.par_width)
             
@@ -230,8 +230,8 @@ class GenerateBus(GenerateVerilog):
 
     # ------------- Error Injection ------------ #
     def _assign_signal_ip(self) -> str:
-        signal_assign_blk = f"\n    r_{self.ip_port} = {self.ip_port};"
-        return signal_assign_blk
+        # No longer needed - signals are used directly
+        return ""
 
     # def _assign_signal_bus(self) -> str:
     #     signal_assign_blk = f"\n    r_{self.bus_port} = {self.bus_port};"
@@ -527,27 +527,7 @@ class GenerateBus(GenerateVerilog):
         for ip_err_port in GenerateBus.ip_bus_par_list[ip_name]:
             module_blk += generate_synchronizer(clk=clk, rst=rst, signal=f"EN{ip_err_port}")
         
-        # Add register declarations for all data signal ports (will be assigned in always block)
-        data_reg_dup = set()
-        for port_info in GenerateBus.original_inport.get(ip_name, []):
-            port_width = port_info[0]
-            port_name = port_info[1]
-            # Skip clock and reset signals
-            if port_name and port_name not in [clk, rst] and port_name not in data_reg_dup:
-                if port_width:
-                    # Extract width from [width-1:0] format
-                    width_val = int(port_width.split("-")[0].replace("[", ""))
-                    module_blk += f"\nreg [{width_val}-1:0] r_{port_name};"
-                else:
-                    module_blk += f"\nreg r_{port_name};"
-                data_reg_dup.add(port_name)
-        
         module_blk += GenerateBus.ip_reg_blk[ip_name] + "\n"
-        module_blk += "\nalways@(*) begin"
-        module_blk += GenerateBus.ip_sig_assign[ip_name]
-        module_blk += GenerateBus.fault_inj_blk[ip_name]
-        # module_blk += self.pre_print_fierr
-        module_blk += "\nend\n"
 
         module_blk += GenerateBus.ip_par_blk[ip_name]
         module_blk += GenerateBus.ip_bus_par_blk[ip_name]
