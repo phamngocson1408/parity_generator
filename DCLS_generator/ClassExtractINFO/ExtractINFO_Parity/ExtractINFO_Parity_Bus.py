@@ -7,63 +7,49 @@ class ExtractINFO_Parity_Bus(ExtractINFO_Parity):
 
     def _extract_fault_injection(self) -> list:
         fault_list = []
-        # Support default YES if missing or empty
-        fault_gen = self.info_dict.get("FAULT INJECTION", "YES").strip().upper()
-        if fault_gen == "": fault_gen = "YES"
-
-        if fault_gen == "YES":
-            sig_port = self.info_dict["SIGNAL PORT NAME"].strip()
-            mode = self._extract_drive_receive()
-            
-            # FIERR (Fault Injection Error) ports are ONLY for RECEIVE signals WITH ERROR PORT
-            # For consolidated comparator: only the signal with ERROR PORT gets FIERR input
-            # Signals without ERROR PORT will share ERROR PORT and FIERR from first signal
-            if mode == "RECEIVE":
-                err_port = self.info_dict.get("ERROR PORT", "")
-                # Only create FIERR port if this signal has an ERROR PORT
-                if err_port and str(err_port).strip().upper() != "NAN":
-                    # Automatically generate port name: FIERR_<SIGNAL PORT NAME>
-                    # FIERR port is always 1 bit
-                    control_port = f"FIERR_{sig_port}"
-                    par_port = self.info_dict["PARITY PORT NAME"].strip()
-                    # Format: [[control_port, [target_bit]]]
-                    fault_list = [[control_port, [f"{par_port}[0]"]]]
-            # For DRIVE mode, no FIERR port needed - return empty list
+        # FAULT INJECTION column removed - always apply FI for RECEIVE ports by default
+        sig_port = self.info_dict["SIGNAL PORT NAME"].strip()
+        mode = self._extract_drive_receive()
+        
+        # FIERR (Fault Injection Error) ports are ONLY for RECEIVE signals WITH ERROR PORT
+        # For consolidated comparator: only the signal with ERROR PORT gets FIERR input
+        # Signals without ERROR PORT will share ERROR PORT and FIERR from first signal
+        if mode == "RECEIVE":
+            err_port = self.info_dict.get("ERROR PORT", "")
+            # Only create FIERR port if this signal has an ERROR PORT
+            if err_port and str(err_port).strip().upper() != "NAN":
+                # Automatically generate port name: FIERR_<SIGNAL PORT NAME>
+                # FIERR port is always 1 bit
+                control_port = f"FIERR_{sig_port}"
+                par_port = self.info_dict["PARITY PORT NAME"].strip()
+                # Format: [[control_port, [target_bit]]]
+                fault_list = [[control_port, [f"{par_port}[0]"]]]
+        # For DRIVE mode, no FIERR port needed - return empty list
                 
         return fault_list
 
     # [TODO] Move this to GenerateParityBus later
     # For now, only support data fierr for regular channel and parity fierr for checker
     def _process_fault_injection(self) -> str:
-        fault_gen = self.info_dict.get("FAULT INJECTION", "YES").strip().upper()
-        if fault_gen == "": fault_gen = "YES"
-
-        if fault_gen == "YES":
-            sig_port = self.info_dict["SIGNAL PORT NAME"].strip()
-            par_port = self.info_dict["PARITY PORT NAME"].strip()
-            mode = self._extract_drive_receive()
-            
-            control_signal = f"r_FIERR_{sig_port}"
-            if mode == "RECEIVE":
-                # In RECEIVE mode, DCLS_COMPARATOR_TEMPLATE handles parity comparison directly
-                # No need for r_<par_port> intermediate register
-                return ""
-            else:
-                total_size = super()._extract_dimension()[0]
-                target = sig_port
-
-                # Use generate_verilog_assign with bit 0 flip by default
-                signal_list = [f"{target}[0]@ignore"] 
-                result_signal = f"r_{target}"
-
-                return generate_verilog_assign(signal_list, total_size, target, control_signal, result_signal)
+        # FAULT INJECTION column removed - always apply FI for RECEIVE ports by default
+        sig_port = self.info_dict["SIGNAL PORT NAME"].strip()
+        par_port = self.info_dict["PARITY PORT NAME"].strip()
+        mode = self._extract_drive_receive()
+        
+        control_signal = f"r_FIERR_{sig_port}"
+        if mode == "RECEIVE":
+            # In RECEIVE mode, DCLS_COMPARATOR_TEMPLATE handles parity comparison directly
+            # No need for r_<par_port> intermediate register
+            return ""
         else:
-            ip_port, ip_par_port =  self._extract_parity_signals_ip()
-            mode = self._extract_drive_receive()
-            if mode == "RECEIVE":
-                return f"\nr_{ip_par_port} = {ip_par_port};"
-            else:
-                return f"\nr_{ip_port} = {ip_port};"
+            total_size = super()._extract_dimension()[0]
+            target = sig_port
+
+            # Use generate_verilog_assign with bit 0 flip by default
+            signal_list = [f"{target}[0]@ignore"] 
+            result_signal = f"r_{target}"
+
+            return generate_verilog_assign(signal_list, total_size, target, control_signal, result_signal)
     # --------------------------------------------
     # COMMON
     # --------------------------------------------
