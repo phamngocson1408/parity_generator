@@ -61,6 +61,125 @@ if __name__ == "__main__":
     # Parse gen_top flag
     gen_top = args.gen_top.upper() == 'YES'
     
+    def extract_parity_module_ports(ip_name, Parity_generator):
+        """Extract port list from generated parity module"""
+        import re
+        try:
+            # Get parity module content
+            parity_module_content = Parity_generator._generate_module_ip(ip_name)
+            
+            # Extract module declaration
+            match = re.search(r'module\s+\w+\s*\((.*?)\);', parity_module_content, re.DOTALL)
+            if match:
+                port_declaration = match.group(1)
+                port_names = []
+                
+                # Extract port names - handle multiple ports per line
+                for line in port_declaration.split('\n'):
+                    line = line.strip()
+                    if line and not line.startswith('//'):
+                        # Split by comma to handle multiple ports on same line
+                        parts = line.split(',')
+                        for part in parts:
+                            # Extract port name (identifier after direction keywords)
+                            # Remove direction keywords (input/output/inout)
+                            part = re.sub(r'^\s*(input|output|inout)\s+', '', part).strip()
+                            # Remove bit width specification
+                            part = re.sub(r'^\[\d+.*?\]\s+', '', part).strip()
+                            # Extract port name
+                            match = re.search(r'(\w+)', part)
+                            if match:
+                                port_name = match.group(1)
+                                if port_name and port_name not in port_names:
+                                    port_names.append(port_name)
+                
+                return port_names
+        except Exception as e:
+            print(f"Error extracting parity module ports: {e}")
+        
+        return None
+    
+    def extract_parity_input_ports(ip_name, Parity_generator, top_port_declaration):
+        """Extract input ports from parity module with their specifications (excluding ACLK, I_RESETN, and already declared ports)"""
+        import re
+        try:
+            parity_module_content = Parity_generator._generate_module_ip(ip_name)
+            
+            # Extract module declaration
+            match = re.search(r'module\s+\w+\s*\((.*?)\);', parity_module_content, re.DOTALL)
+            if match:
+                port_declaration = match.group(1)
+                extra_inport = []
+                seen_ports = set()
+                
+                # Ports to skip (clock/reset already exist in top module)
+                skip_ports = {'ACLK', 'I_CLK', 'I_RESETN', 'RESETN_ACLK'}
+                
+                # Parse each line to find input ports
+                for line in port_declaration.split('\n'):
+                    line = line.strip()
+                    if line.startswith('input'):
+                        # Split by comma to handle multiple inputs on same line
+                        parts = line.split(',')
+                        for part in parts:
+                            part = part.strip()
+                            if part.startswith('input') or part:
+                                # Parse: input [width] port_name
+                                match = re.search(r'input\s+(\[.*?\]\s+)?(\w+)', part)
+                                if match:
+                                    bit_width = match.group(1).strip() if match.group(1) else ""
+                                    port_name = match.group(2)
+                                    
+                                    # Skip if already in top module declaration or in skip list
+                                    if port_name not in seen_ports and port_name not in skip_ports and port_name not in top_port_declaration:
+                                        seen_ports.add(port_name)
+                                        extra_inport.append([bit_width, port_name, ""])
+                
+                return extra_inport
+        except Exception as e:
+            print(f"Error extracting parity input ports: {e}")
+        
+        return []
+    
+    def extract_parity_output_ports(ip_name, Parity_generator, top_port_declaration):
+        """Extract output ports from parity module with their specifications (excluding already declared ports)"""
+        import re
+        try:
+            parity_module_content = Parity_generator._generate_module_ip(ip_name)
+            
+            # Extract module declaration
+            match = re.search(r'module\s+\w+\s*\((.*?)\);', parity_module_content, re.DOTALL)
+            if match:
+                port_declaration = match.group(1)
+                extra_outport = []
+                seen_ports = set()
+                
+                # Parse each line to find output ports
+                for line in port_declaration.split('\n'):
+                    line = line.strip()
+                    if line.startswith('output'):
+                        # Split by comma to handle multiple outputs on same line
+                        parts = line.split(',')
+                        for part in parts:
+                            part = part.strip()
+                            if part.startswith('output') or part:
+                                # Parse: output [width] port_name
+                                match = re.search(r'output\s+(\[.*?\]\s+)?(\w+)', part)
+                                if match:
+                                    bit_width = match.group(1).strip() if match.group(1) else ""
+                                    port_name = match.group(2)
+                                    
+                                    # Skip if already in top module declaration
+                                    if port_name not in seen_ports and port_name not in top_port_declaration:
+                                        seen_ports.add(port_name)
+                                        extra_outport.append([bit_width, port_name, ""])
+                
+                return extra_outport
+        except Exception as e:
+            print(f"Error extracting parity output ports: {e}")
+        
+        return []
+    
     def filter_by_group(info_dict_list, selected_groups):
         """Filter info_dict_list by GROUP column if selected_groups is specified"""
         if selected_groups is None:
@@ -314,27 +433,43 @@ if __name__ == "__main__":
                     module_declaration_content = f"module {top_name} "
                     if top_param_declaration:
                         module_declaration_content += "#(\n" + top_param_declaration + "\n)"
+                    
+                    # Extract input and output ports from parity module to add to top module declaration
+                    # Only add ports that are not already declared in top module
+                    parity_extra_inports = extract_parity_input_ports(ip, Parity_generator, top_port_declaration)
+                    parity_extra_outports = extract_parity_output_ports(ip, Parity_generator, top_port_declaration)
+                    
+                    # Add parity input/output ports to module declaration
                     module_declaration_content += "(\n" + declare_parity_port_2001(
                         port_declaration_2001=top_port_declaration,
                         ANSI_C=ANSI_C_port,
-                        extra_inport=extra_inport,
-                        extra_outport=extra_outport) + "\n);\n"
-                    module_declaration_content += "\n" + declare_parity_port_1995(
-                        port_declaration_1995=port_declaration_1995,
-                        ANSI_C=ANSI_C_port,
-                        extra_inport=extra_inport,
-                        extra_outport=extra_outport) + "\n"
+                        extra_inport=parity_extra_inports,
+                        extra_outport=parity_extra_outports) + "\n);\n"
+                    # NOTE: declare_parity_port_1995 is deprecated - ANSI-C style (2001) is sufficient
 
                     # Add instance - only if not already exists
                     instance_name = f"u_{top_name.lower()}_ip_parity_gen"
                     if instance_name not in module_whole_content:
-                        all_port = original_inport + original_outport + extra_inport + extra_outport
-                        instance_content = f"\n{top_name}_IP_PARITY_GEN u_{top_name.lower()}_ip_parity_gen ("
-                        for port in all_port:
-                            instance_content += f"\n    .{port[1]} ({port[1]}),"
-                        instance_content = instance_content[:-1] + "\n);\n"
-
-                        module_whole_content = module_whole_content[:-9] + instance_content + "endmodule"
+                        # Parse parity module to get ALL ports
+                        parity_module_ports = extract_parity_module_ports(ip, Parity_generator)
+                        if parity_module_ports:
+                            instance_content = f"\n{top_name}_IP_PARITY_GEN u_{top_name.lower()}_ip_parity_gen ("
+                            port_connections = []
+                            for parity_port_name in parity_module_ports:
+                                # Map clock/reset ports from top module
+                                if parity_port_name == "I_CLK":
+                                    top_port_name = "ACLK"
+                                elif parity_port_name == "I_RESETN":
+                                    top_port_name = "RESETN_ACLK"
+                                else:
+                                    top_port_name = parity_port_name
+                                port_connections.append(f".{parity_port_name} ({top_port_name})")
+                            
+                            instance_content += "\n    " + ",\n    ".join(port_connections) + "\n);\n"
+                            module_whole_content = module_whole_content[:-9] + instance_content + "endmodule"
+                        else:
+                            print(f"Warning: Could not extract ports from parity module for IP {ip}")
+                            module_whole_content = module_whole_content
                     else:
                         print(f"Instance {instance_name} already exists in {top_name}, skipping instance addition")
                         module_whole_content = module_whole_content
