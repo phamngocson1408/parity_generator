@@ -180,6 +180,26 @@ if __name__ == "__main__":
         
         return []
     
+    def clean_parity_from_module(module_content, module_name):
+        """Remove only parity-related ports (containing 'PARITY') and parity instances from module"""
+        import re
+        
+        lines = module_content.split('\n')
+        cleaned_lines = []
+        
+        for line in lines:
+            # Only skip lines that contain "PARITY" in port name (true parity ports)
+            # or parity instance (u_*_ip_parity_gen)
+            # Do NOT skip other error ports like ENERR_*_CRC or FIERR_*
+            
+            if 'PARITY' in line or ('u_' in line and 'ip_parity_gen' in line):
+                # Skip this line - it's a true parity port or parity instance
+                continue
+            
+            cleaned_lines.append(line)
+        
+        return '\n'.join(cleaned_lines)
+    
     def filter_by_group(info_dict_list, selected_groups):
         """Filter info_dict_list by GROUP column if selected_groups is specified"""
         if selected_groups is None:
@@ -389,6 +409,9 @@ if __name__ == "__main__":
                     print(f"Target top module '{top_name}' is found at '{top_file_dir}'")
                     with open(top_file_dir, 'r') as file:
                         top_file_contents_ori = file.read()
+
+                    # Clean parity ports/instances from original file first
+                    top_file_contents_ori = clean_parity_from_module(top_file_contents_ori, top_name)
 
                     ModuleLocator = LocateModule(top_file_contents_ori, top_name)
                     before_top_file_contents, top_file_contents, after_top_file_contents = ModuleLocator._separate_ip()
