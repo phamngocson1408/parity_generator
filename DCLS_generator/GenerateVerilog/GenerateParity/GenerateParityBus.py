@@ -291,6 +291,9 @@ class GenerateBus(GenerateVerilog):
             # Calculate parity width
             par_width_bits = self.bit_width // self.par_width
             
+            # Use FI{error_port} as the fault injection control port name
+            fi_port_name = f"FI{self.ip_err_port}" if self.ip_err_port else ""
+            
             err_blk += f"\nDCLS_COMPARATOR_TEMPLATE #(\n"
             err_blk += f"    .DATA_WIDTH({par_width_bits}),\n"
             err_blk += f"    .MAX_INPUT_WIDTH({self.comparator_input_width}),\n"
@@ -308,7 +311,10 @@ class GenerateBus(GenerateVerilog):
             err_blk = err_blk[:-2] + f" }}),\n"
             
             err_blk += f"    .ENERR_DCLS(r_EN{self.ip_err_port}),\n"
-            err_blk += f"    .FIERR_DCLS(r_FIERR_{self.ip_port}),\n"
+            if fi_port_name:
+                err_blk += f"    .FIERR_DCLS(r_{fi_port_name}),\n"
+            else:
+                err_blk += f"    .FIERR_DCLS(1'b0),\n"
             err_blk += f"    .ERR_DCLS({self.ip_err_port}),\n"
             err_blk += f"    .ERR_DCLS_B({self.ip_err_port}_B)\n"
             err_blk += f");\n"
@@ -346,6 +352,9 @@ class GenerateBus(GenerateVerilog):
             total_par_width = sum(receive_par_widths) if receive_par_widths else 0
             
             if total_par_width > 0:
+                # Use FI{error_port} as the fault injection control port name
+                fi_port_name = f"FI{first_err_port}"
+                
                 err_blk += f"\nDCLS_COMPARATOR_TEMPLATE #(\n"
                 err_blk += f"    .DATA_WIDTH({total_par_width}),\n"
                 err_blk += f"    .MAX_INPUT_WIDTH({self.comparator_input_width}),\n"
@@ -376,7 +385,7 @@ class GenerateBus(GenerateVerilog):
                 err_blk += " }),\n"
                 
                 err_blk += f"    .ENERR_DCLS(r_EN{first_err_port}),\n"
-                err_blk += f"    .FIERR_DCLS(r_FIERR_{receive_ports[0]}),\n"
+                err_blk += f"    .FIERR_DCLS(r_{fi_port_name}),\n"
                 err_blk += f"    .ERR_DCLS({first_err_port}),\n"
                 err_blk += f"    .ERR_DCLS_B({first_err_port}_B)\n"
                 err_blk += f");\n"
@@ -407,13 +416,25 @@ class GenerateBus(GenerateVerilog):
         # NOTE: Fault injection disabled for driver signals - only kept for receiver signals
         if self.drive_receive == "RECEIVE":
             GenerateBus.fault_inj_blk[self.ip_name] += "\n\t" + self.pre_print_fierr
-            # Add FIERR input ports only for RECEIVE mode signals
-            for fault_list in self.fault_list:
-                control_port_name = fault_list[0].split("[")[0]  # Get port name
-                # Check for duplicates before adding
-                port_to_add = ["", control_port_name, ""]
+            # Add FI input ports based on ERROR PORT name only for RECEIVE mode signals
+            # Use FI_ prefix with ERROR PORT name instead of using FIERR_ with signal names
+            if self.ip_err_port:
+                fi_port_name = f"FI{self.ip_err_port}"
+                port_to_add = ["", fi_port_name, ""]
                 if port_to_add not in GenerateBus.extra_inport[self.ip_name]:
                     GenerateBus.extra_inport[self.ip_name].append(port_to_add)
+                # Update ip_fierr_map to track the new FI port name
+                if fi_port_name not in GenerateBus.ip_fierr_map[self.ip_name]:
+                    GenerateBus.ip_fierr_map[self.ip_name][fi_port_name] = {self.ip_port}
+                else:
+                    GenerateBus.ip_fierr_map[self.ip_name][fi_port_name].add(self.ip_port)
+            elif self.fault_list:
+                # Fallback to original behavior if no error port but has fault_list
+                for fault_list in self.fault_list:
+                    control_port_name = fault_list[0].split("[")[0]  # Get port name
+                    port_to_add = ["", control_port_name, ""]
+                    if port_to_add not in GenerateBus.extra_inport[self.ip_name]:
+                        GenerateBus.extra_inport[self.ip_name].append(port_to_add)
             
             # Collect RECEIVE port information for consolidated comparator
             # Include ALL RECEIVE signals in the comparator (they share the same error port)
@@ -486,15 +507,25 @@ class GenerateBus(GenerateVerilog):
         for ip_err_port in GenerateBus.ip_bus_par_list[ip_name]:
             if ip_err_port in GenerateBus.ip_err_port_blk:
                 module_blk += GenerateBus.ip_err_port_blk[ip_err_port]
-        module_blk += GenerateBus.ip_port_blk[ip_name]
-        # Add extra input ports (including FIERR ports for RECEIVE signals, SIGNAL VALID, etc.)
-        # Deduplicate by port name before adding
+        
+        # Add FI (fault injection) ports right after ENERR ports
         added_port_names = set()
         extra_ports_set = set(tuple(lst) for lst in GenerateBus.extra_inport.get(ip_name, []))
         for extra_port in extra_ports_set:
             if extra_port[1] and extra_port[1] not in added_port_names:  # Port name is not empty and not yet added
-                # Skip ENERR and error ports - they are already added via ip_err_port_blk
-                if extra_port[1].startswith("EN") or extra_port[1].endswith("_BUS_PARITY") or extra_port[1].startswith("ERR_"):
+                # Add FI ports (fault injection control ports)
+                if extra_port[1].startswith("FI"):
+                    port_width = f"[{extra_port[0]}-1:0] " if extra_port[0] else ""
+                    module_blk += f"\n    input  {port_width}{extra_port[1]},"
+                    added_port_names.add(extra_port[1])
+        
+        module_blk += GenerateBus.ip_port_blk[ip_name]
+        # Add extra input ports (including SIGNAL VALID, etc., but NOT FIERR or ENERR ports)
+        # Deduplicate by port name before adding
+        for extra_port in extra_ports_set:
+            if extra_port[1] and extra_port[1] not in added_port_names:  # Port name is not empty and not yet added
+                # Skip ENERR, error ports, and FI ports - they are already added
+                if extra_port[1].startswith("EN") or (extra_port[1].endswith("_BUS_PARITY") and not extra_port[1].startswith("FI")) or extra_port[1].startswith("ERR_") or extra_port[1].startswith("FI"):
                     continue
                 port_width = f"[{extra_port[0]}-1:0] " if extra_port[0] else ""
                 module_blk += f"\n    input  {port_width}{extra_port[1]},"
@@ -512,13 +543,13 @@ class GenerateBus(GenerateVerilog):
                 else:
                     module_blk += generate_synchronizer(clk=clk, rst=rst, signal=fierr)
         
-        # Add synchronizers for FIERR ports added to extra_inport (for RECEIVE mode signals)
+        # Add synchronizers for FI_ ports added to extra_inport (for RECEIVE mode signals)
         # This is done outside of drive_receive_mode check because extra_inport may contain ports from multiple rows
         extra_ports_set = set(tuple(lst) for lst in GenerateBus.extra_inport.get(ip_name, []))
         for extra_port in extra_ports_set:
             port_name = extra_port[1]
-            # Check if this is a FIERR port
-            if port_name and port_name.startswith("FIERR_"):
+            # Check if this is a FI port (fault injection port based on error port)
+            if port_name and port_name.startswith("FI"):
                 if port_name not in fierr_dup:
                     module_blk += generate_synchronizer(clk=clk, rst=rst, signal=port_name)
                     fierr_dup.add(port_name)

@@ -291,7 +291,13 @@ class GenerateRegister(GenerateVerilog):
         GenerateRegister.extra_outport[self.ip_name].append([f"", self.reg_err_port, ""])
         if self.reg_err_dup:
             GenerateRegister.extra_outport[self.ip_name].append([f"", f"{self.reg_err_port}_B", ""])
-        GenerateRegister.extra_inport[self.ip_name].append([f"", self.fault_list[0], ""])
+        # Use FI{error_port} as the fault injection control port name
+        if self.reg_err_port:
+            fi_port_name = f"FI{self.reg_err_port}"
+            GenerateRegister.extra_inport[self.ip_name].append([f"", fi_port_name, ""])
+        elif self.fault_list:
+            # Fallback to original fault_list[0] if no error port but has fault_list
+            GenerateRegister.extra_inport[self.ip_name].append([f"", self.fault_list[0], ""])
         GenerateRegister.original_inport[self.ip_name].append([f"[{self.bit_width-1}:0]", self.reg_name, ""])
         GenerateRegister.original_inport[self.ip_name].append([f"[{self.bit_width-1}:0]", self.reg_sig, ""])
         GenerateRegister.original_inport[self.ip_name].append([f"", f"{self.reg_name}_valid", ""])
