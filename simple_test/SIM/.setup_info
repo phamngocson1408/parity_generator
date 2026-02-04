@@ -1,0 +1,42 @@
+================================================================================
+  SIMPLE_TOP VCS Simulation Setup - Information
+================================================================================
+
+CREATED: 2026-02-04
+PURPOSE: VCS-based simulation environment for SIMPLE_TOP parity testbench
+
+DIRECTORY CONTENTS:
+  ✓ filelist.f           - References to generated RTL modules
+  ✓ SIMPLE_TOP_TB.v      - Comprehensive testbench (self-checking)
+  ✓ run_vcs.sh           - VCS GUI simulation script (interactive)
+  ✓ run_vcs_batch.sh     - VCS batch simulation script (headless)
+  ✓ README.md            - Detailed simulation documentation
+  ✓ work/                - Created during simulation (build artifacts)
+
+QUICK START:
+  1. cd /home/pnson/Workspace/Parity_Generator/simple_test/SIM
+  2. ./run_vcs_batch.sh  # For batch mode (recommended)
+     OR
+     ./run_vcs.sh        # For interactive GUI mode
+
+TESTBENCH FEATURES:
+  • Tests 18 different scenarios
+  • Verifies parity generation for all channels
+  • Checks AXI-like handshake protocol
+  • Monitors status counter
+  • Self-checking with PASS/FAIL reporting
+
+MODULES UNDER TEST:
+  • SIMPLE_TOP_NEW.v (generated with parity ports)
+  • SIMPLE_TOP_PARITY_NEW.v (parity generator)
+
+EXPECTED OUTPUT:
+  All 18 tests should PASS with "✓ ALL TESTS PASSED!" message
+
+FILES REFERENCE:
+  Baseline module:      ../RTL/SIMPLE_TOP.v
+  Generated module:     ../RTL/SAFETY/SIMPLE_TOP_NEW.v
+  Parity module:        ../RTL/SAFETY/SIMPLE_TOP_PARITY_NEW.v
+  Simulation log:       ./work/sim.log
+
+================================================================================

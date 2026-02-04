@@ -1,1 +1,1 @@
-SIMPLE_TOP.v
+./SIMPLE_TOP.v
