@@ -500,11 +500,14 @@ module SIMPLE_TOP_TB;
         $display("[%0t] Test %0d: RADDR transaction to verify RDATA parity generation", $time, test_count);
         
         @(posedge ACLK);
-        RADDR_VALID = 1'b1;
         RADDR_DATA = 32'hAABBCCDD;
+        expected_parity = calc_parity_32(RADDR_DATA);
+        RADDR_PARITY = expected_parity;  // Set RECEIVE parity port
+        RADDR_VALID = 1'b1;
         
         @(posedge ACLK);
         RADDR_VALID = 1'b0;
+        RADDR_PARITY = 1'b0;  // Reset
         
         // Wait for RDATA to appear
         repeat(3) @(posedge ACLK);
@@ -512,7 +515,7 @@ module SIMPLE_TOP_TB;
         if (RDATA_VALID) begin
             // Check if RDATA_PARITY output is reasonable
             expected_parity = calc_parity_64(RDATA_DATA);
-            $display("[%0t] Test %0d: RDATA valid with parity=%b (calculated=%b)", 
+            $display("[%0t] Test %0d PASS: RDATA valid with parity=%b (calculated=%b)", 
                     $time, test_count, RDATA_PARITY, expected_parity);
             pass_count = pass_count + 1;
             injection_pass = injection_pass + 1;
@@ -529,6 +532,7 @@ module SIMPLE_TOP_TB;
     
     // Test: Monitor error outputs
     task test_error_monitoring();
+        logic expected_parity;
         $display("--- Test 8: Error Signal Monitoring ---");
         
         test_count = test_count + 1;
@@ -540,12 +544,14 @@ module SIMPLE_TOP_TB;
         // Send a transaction with FIERR disabled
         @(posedge ACLK);
         FIERR_WADDR_PARITY = 1'b0;
-        WADDR_VALID = 1'b1;
         WADDR_DATA = 32'hDEADBEEF;
-        WADDR_PARITY = calc_parity_32(WADDR_DATA);
+        expected_parity = calc_parity_32(WADDR_DATA);
+        WADDR_PARITY = expected_parity;  // Set RECEIVE parity
+        WADDR_VALID = 1'b1;
         
         @(posedge ACLK);
         WADDR_VALID = 1'b0;
+        WADDR_PARITY = 1'b0;
         
         repeat(2) @(posedge ACLK);
         $display("[%0t] With FIERR=0: ERR_WADDR_PARITY=%b, ERR_WADDR_PARITY_B=%b", 
@@ -560,12 +566,14 @@ module SIMPLE_TOP_TB;
         test_count = test_count + 1;
         @(posedge ACLK);
         FIERR_WADDR_PARITY = 1'b1;
-        WADDR_VALID = 1'b1;
         WADDR_DATA = 32'hCAFEBABE;
-        WADDR_PARITY = calc_parity_32(WADDR_DATA);
+        expected_parity = calc_parity_32(WADDR_DATA);
+        WADDR_PARITY = expected_parity;  // Set RECEIVE parity
+        WADDR_VALID = 1'b1;
         
         @(posedge ACLK);
         WADDR_VALID = 1'b0;
+        WADDR_PARITY = 1'b0;
         
         repeat(2) @(posedge ACLK);
         $display("[%0t] Test %0d: With FIERR=1: ERR_WADDR_PARITY=%b, ERR_WADDR_PARITY_B=%b", 
@@ -579,5 +587,13 @@ module SIMPLE_TOP_TB;
         
         $display("");
     endtask
+
+//====================================================
+// WAVEFORM DUMP
+//====================================================
+initial begin
+    $fsdbDumpfile("DUMP/oh");
+    $fsdbDumpvars(0, SIMPLE_TOP_TB, "+all");
+end
 
 endmodule
