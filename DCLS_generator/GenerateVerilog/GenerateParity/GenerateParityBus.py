@@ -497,24 +497,26 @@ class GenerateBus(GenerateVerilog):
         module_blk += f"module {ip_name}_IP_PARITY_GEN ("
         module_blk += f"\n    input {clk}, {rst},"
         # NOTE: Fault injection disabled for driver signals - fierr ports removed for DRIVE mode
+        # For RECEIVE mode, only FI ports from ERROR PORT definition are added, not from ip_fierr_map
+        # This prevents duplicate/unnecessary FIERR ports for individual data signals
         if drive_receive_mode == "RECEIVE":
-            fierr_cnt = count_fierr_bit(GenerateBus.ip_fierr_map[ip_name])
-            for fierr, _ in GenerateBus.ip_fierr_map[ip_name].items():
-                cnt = fierr_cnt[fierr.split('[')[0].strip()]
-                fierr_declaration_set.add(f"\n    input [{cnt}-1:0] {fierr.split('[')[0].strip()},")
-                # module_blk += f"\n    input {fierr},"
+            # DO NOT generate FIERR ports from ip_fierr_map for RECEIVE mode
+            # FI ports will be added via extra_inport from ERROR PORT definition instead
+            pass
         module_blk += "".join(fierr_declaration_set)
         for ip_err_port in GenerateBus.ip_bus_par_list[ip_name]:
             if ip_err_port in GenerateBus.ip_err_port_blk:
                 module_blk += GenerateBus.ip_err_port_blk[ip_err_port]
         
         # Add FI (fault injection) ports right after ENERR ports
+        # NOTE: Only add FI ports that relate to parity (ERROR PORTS), not to data signals
         added_port_names = set()
         extra_ports_set = set(tuple(lst) for lst in GenerateBus.extra_inport.get(ip_name, []))
         for extra_port in extra_ports_set:
             if extra_port[1] and extra_port[1] not in added_port_names:  # Port name is not empty and not yet added
-                # Add FI ports (fault injection control ports)
-                if extra_port[1].startswith("FI"):
+                # Add FI ports (fault injection control ports) - but skip FI for data signals
+                # Only keep FIERR/FI ports related to parity/error ports, not FIERR_*_DATA ports
+                if extra_port[1].startswith("FI") and not any(data_suffix in extra_port[1] for data_suffix in ["_DATA"]):
                     port_width = f"[{extra_port[0]}-1:0] " if extra_port[0] else ""
                     module_blk += f"\n    input  {port_width}{extra_port[1]},"
                     added_port_names.add(extra_port[1])
@@ -534,22 +536,21 @@ class GenerateBus(GenerateVerilog):
 
         module_blk += GenerateBus.ip_wire_blk[ip_name] + "\n"
         # NOTE: Fault injection disabled for driver signals - synchronizer for fierr removed for DRIVE mode
+        # For RECEIVE mode, synchronizers are added only for FI ports from ERROR PORT definition
+        # Do NOT add synchronizers from ip_fierr_map to avoid unnecessary FIERR_*_DATA synchronizers
         if drive_receive_mode == "RECEIVE":
-            for fierr, _ in GenerateBus.ip_fierr_map[ip_name].items():
-                if "[" in fierr:
-                    if fierr.split("[")[0] not in fierr_dup:
-                        module_blk += generate_synchronizer(clk=clk, rst=rst, signal=fierr.split("[")[0], size=(self.bit_width/self.par_width))
-                        fierr_dup.add(fierr.split("[")[0])
-                else:
-                    module_blk += generate_synchronizer(clk=clk, rst=rst, signal=fierr)
+            # Synchronizers for ip_fierr_map FIERR ports are NOT added
+            # Only FI port synchronizers from extra_inport will be added below
+            pass
         
         # Add synchronizers for FI_ ports added to extra_inport (for RECEIVE mode signals)
         # This is done outside of drive_receive_mode check because extra_inport may contain ports from multiple rows
+        # NOTE: Only sync FI ports related to parity/error ports, not FI for data signals
         extra_ports_set = set(tuple(lst) for lst in GenerateBus.extra_inport.get(ip_name, []))
         for extra_port in extra_ports_set:
             port_name = extra_port[1]
-            # Check if this is a FI port (fault injection port based on error port)
-            if port_name and port_name.startswith("FI"):
+            # Check if this is a FI port (fault injection port based on error port) - but skip _DATA suffixed ports
+            if port_name and port_name.startswith("FI") and not any(data_suffix in port_name for data_suffix in ["_DATA"]):
                 if port_name not in fierr_dup:
                     module_blk += generate_synchronizer(clk=clk, rst=rst, signal=port_name)
                     fierr_dup.add(port_name)

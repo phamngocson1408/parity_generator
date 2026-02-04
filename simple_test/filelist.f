@@ -1,1 +1,0 @@
-./SIMPLE_TOP.v

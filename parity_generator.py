@@ -100,7 +100,9 @@ if __name__ == "__main__":
         return None
     
     def extract_parity_input_ports(ip_name, Parity_generator, top_port_declaration):
-        """Extract input ports from parity module with their specifications (excluding ACLK, I_RESETN, and already declared ports)"""
+        """Extract input ports from parity module with their specifications (excluding ACLK, I_RESETN, and already declared ports)
+        Important: Only include FIERR/ENERR control ports that are actually used for error detection, not data-related FIERR ports
+        """
         import re
         try:
             parity_module_content = Parity_generator._generate_module_ip(ip_name)
@@ -114,6 +116,8 @@ if __name__ == "__main__":
                 
                 # Ports to skip (clock/reset already exist in top module)
                 skip_ports = {'ACLK', 'I_CLK', 'I_RESETN', 'RESETN_ACLK'}
+                # FIERR ports for data signals should NOT be included - only FIERR/ENERR for parity control
+                skip_fierr_data = {'FIERR_WADDR_DATA', 'FIERR_WDATA_DATA', 'FIERR_RADDR_DATA', 'FIERR_RDATA_DATA'}
                 
                 # Parse each line to find input ports
                 for line in port_declaration.split('\n'):
@@ -130,8 +134,11 @@ if __name__ == "__main__":
                                     bit_width = match.group(1).strip() if match.group(1) else ""
                                     port_name = match.group(2)
                                     
-                                    # Skip if already in top module declaration or in skip list
-                                    if port_name not in seen_ports and port_name not in skip_ports and port_name not in top_port_declaration:
+                                    # Skip if already in top module declaration, in skip list, or data-related FIERR
+                                    if (port_name not in seen_ports and 
+                                        port_name not in skip_ports and 
+                                        port_name not in skip_fierr_data and
+                                        port_name not in top_port_declaration):
                                         seen_ports.add(port_name)
                                         extra_inport.append([bit_width, port_name, ""])
                 
@@ -184,21 +191,46 @@ if __name__ == "__main__":
         """Remove only parity-related ports (containing 'PARITY') and parity instances from module"""
         import re
         
+        # Remove complete parity instance blocks: pattern matches the entire instance declaration
+        # Match from module_name_IP_PARITY_GEN ... ); including all port connections
+        instance_pattern = r'\n\s*' + re.escape(module_name) + r'_IP_PARITY_GEN\s+u_\w+_ip_parity_gen\s*\([^)]*\)\s*;'
+        module_content = re.sub(instance_pattern, '', module_content, flags=re.DOTALL)
+        
         lines = module_content.split('\n')
         cleaned_lines = []
         
-        for line in lines:
-            # Only skip lines that contain "PARITY" in port name (true parity ports)
-            # or parity instance (u_*_ip_parity_gen)
-            # Do NOT skip other error ports like ENERR_*_CRC or FIERR_*
+        for i, line in enumerate(lines):
+            stripped = line.strip()
             
-            if 'PARITY' in line or ('u_' in line and 'ip_parity_gen' in line):
-                # Skip this line - it's a true parity port or parity instance
+            # Skip lines that contain "PARITY" in port name (true parity ports)
+            if 'PARITY' in line:
                 continue
+            
+            # Detect orphaned port connection lines (start with . and follow assignments)
+            # Usually appear before the proper instance declaration
+            if stripped.startswith('.') and ('(' in stripped and ')' in stripped):
+                # This is likely a dangling port connection - skip it
+                continue
+            
+            # Skip standalone closing paren that appears after assignments
+            # (indicator of broken instance removal)
+            if stripped == ');' and len(cleaned_lines) > 0:
+                # Check if previous lines are assignments or logic, not port declarations
+                prev_line_idx = len(cleaned_lines) - 1
+                while prev_line_idx >= 0 and cleaned_lines[prev_line_idx].strip() == '':
+                    prev_line_idx -= 1
+                if prev_line_idx >= 0:
+                    prev_line_stripped = cleaned_lines[prev_line_idx].strip()
+                    # If previous line is assignment or logic (not port), skip this )
+                    if any(kw in prev_line_stripped for kw in ['assign', 'always', 'end', 'endmodule', 'begin']):
+                        continue
             
             cleaned_lines.append(line)
         
-        return '\n'.join(cleaned_lines)
+        result = '\n'.join(cleaned_lines)
+        # Final pass: remove excessive blank lines that might be left
+        result = re.sub(r'\n\n\n+', '\n\n', result)
+        return result
     
     def filter_by_group(info_dict_list, selected_groups):
         """Filter info_dict_list by GROUP column if selected_groups is specified"""
@@ -300,7 +332,11 @@ if __name__ == "__main__":
                         instance_content += f"\n    .{port[1]} ({port[1]}),"
                     instance_content = instance_content[:-1] + "\n);\n"
 
-                    module_whole_content = module_whole_content[:-9] + instance_content + "endmodule"
+                    module_whole_content = module_whole_content.rstrip()
+                    if module_whole_content.endswith('endmodule'):
+                        module_whole_content = module_whole_content[:-9].rstrip() + "\n" + instance_content + "endmodule"
+                    else:
+                        module_whole_content = module_whole_content + "\n" + instance_content + "endmodule"
                     top_file_contents = module_declaration_content + module_whole_content
                     par_dir = f"./DCLS_generator/module_parity/SIGNAL_PARITY_DRV_{top_name}_TOP.v"
                     par_file = open(par_dir, 'w')
@@ -365,7 +401,11 @@ if __name__ == "__main__":
                         instance_content += f"\n    .{port[1]} ({port[1]}),"
                     instance_content = instance_content[:-1] + "\n);\n"
 
-                    module_whole_content = module_whole_content[:-9] + instance_content + "endmodule"
+                    module_whole_content = module_whole_content.rstrip()
+                    if module_whole_content.endswith('endmodule'):
+                        module_whole_content = module_whole_content[:-9].rstrip() + "\n" + instance_content + "endmodule"
+                    else:
+                        module_whole_content = module_whole_content + "\n" + instance_content + "endmodule"
                     top_file_contents = module_declaration_content + module_whole_content
                     par_dir = f"./DCLS_generator/module_parity/SIGNAL_PARITY_RCV_{top_name}_TOP.v"
                     par_file = open(par_dir, 'w')
@@ -489,7 +529,11 @@ if __name__ == "__main__":
                                 port_connections.append(f".{parity_port_name} ({top_port_name})")
                             
                             instance_content += "\n    " + ",\n    ".join(port_connections) + "\n);\n"
-                            module_whole_content = module_whole_content[:-9] + instance_content + "endmodule"
+                            module_whole_content = module_whole_content.rstrip()
+                            if module_whole_content.endswith('endmodule'):
+                                module_whole_content = module_whole_content[:-9].rstrip() + "\n" + instance_content + "endmodule"
+                            else:
+                                module_whole_content = module_whole_content + "\n" + instance_content + "endmodule"
                         else:
                             print(f"Warning: Could not extract ports from parity module for IP {ip}")
                             module_whole_content = module_whole_content

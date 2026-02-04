@@ -160,6 +160,10 @@ def find_last_valid_index(port_declaration: str, cmt_indices: list):
 
 def declare_parity_port_2001(port_declaration_2001: str, ANSI_C: bool, extra_inport: list, extra_outport: list) -> str:
     port_block = port_declaration_2001.rstrip()
+    
+    # Remove trailing comma from original port list if present
+    if port_block.endswith(','):
+        port_block = port_block[:-1].rstrip()
 
     # In case the last part of port declaration is a comment
     comment_processor = CommentProcess(port_block)
@@ -173,10 +177,21 @@ def declare_parity_port_2001(port_declaration_2001: str, ANSI_C: bool, extra_inp
         end_index_wo_space = len(port_block[:end_index + 1].rstrip())
         port_block = port_block[:end_index_wo_space] + ',' + port_block[end_index_wo_space:]
     else:
-        port_block += ','
-    port_block += '\n'
+        # Only add comma if not already present
+        if not port_block.rstrip().endswith(','):
+            port_block += ','
 
     if ANSI_C:
+        # Ensure we start with clean state (remove any trailing comma/whitespace)
+        port_block = port_block.rstrip()
+        if port_block.endswith(','):
+            port_block = port_block[:-1]
+        
+        # If there are extra ports, ensure original ports end with comma
+        if extra_inport or extra_outport:
+            if not port_block.endswith(','):
+                port_block += ','
+        
         if extra_inport:
             for inport in extra_inport:
                 port_block += f"\n    input {inport[0]} {inport[1]} {inport[2]},"
@@ -184,8 +199,21 @@ def declare_parity_port_2001(port_declaration_2001: str, ANSI_C: bool, extra_inp
             for outport in extra_outport:
                 port_block += f"\n    output {outport[0]} {outport[1]} {outport[2]},"
 
-        port_block = port_block[:-1] + "\n"
+        # Always remove trailing comma at the end
+        port_block = port_block.rstrip()
+        if port_block.endswith(','):
+            port_block = port_block[:-1]
     else:
+        # Ensure we start with clean state
+        port_block = port_block.rstrip()
+        if port_block.endswith(','):
+            port_block = port_block[:-1]
+        
+        # If there are extra ports, ensure original ports end with comma
+        if extra_inport or extra_outport:
+            if not port_block.endswith(','):
+                port_block += ','
+        
         if extra_inport:
             for inport in extra_inport:
                 port_block += f"\n    {inport[1]},"
@@ -193,7 +221,10 @@ def declare_parity_port_2001(port_declaration_2001: str, ANSI_C: bool, extra_inp
             for outport in extra_outport:
                 port_block += f"\n    {outport[1]},"
 
-        port_block = port_block[:-1] + "\n"
+        # Always remove trailing comma at the end
+        port_block = port_block.rstrip()
+        if port_block.endswith(','):
+            port_block = port_block[:-1]
 
     return port_block
 
