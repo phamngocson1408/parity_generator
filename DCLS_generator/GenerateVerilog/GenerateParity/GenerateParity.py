@@ -266,6 +266,7 @@ class GenerateParity(GenerateVerilog):
             clk = GenerateParity.drv_clk_rst_blk[drv_name].get('clk')
             rst = GenerateParity.drv_clk_rst_blk[drv_name].get('rst')
 
+            module_blk += "`timescale 1ns / 1ps\n\n"
             module_blk += f"module {drv_name}_SIGNAL_PARITY_GEN ("
             module_blk += f"\n    input {clk}, {rst},"
             # NOTE: Fault injection disabled for driver signals - fierr ports removed
@@ -294,6 +295,7 @@ class GenerateParity(GenerateVerilog):
         for rcv_name in GenerateParity.rcv_set:
             clk = GenerateParity.rcv_clk_rst_blk[rcv_name].get('clk')
             rst = GenerateParity.rcv_clk_rst_blk[rcv_name].get('rst')
+            module_blk += "`timescale 1ns / 1ps\n\n"
             module_blk += f"module {rcv_name}_SIGNAL_PARITY_GEN ("
             module_blk += f"\n    input {clk}, {rst},"
             module_blk += GenerateParity.rcv_port_blk[rcv_name]

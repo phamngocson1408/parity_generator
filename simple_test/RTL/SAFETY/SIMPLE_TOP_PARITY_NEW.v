@@ -1,3 +1,5 @@
+`timescale 1ns / 1ps
+
 module SIMPLE_TOP_IP_PARITY_GEN (
     input ACLK, RESETN_ACLK,
     input  ENERR_WADDR_PARITY,
@@ -49,6 +51,11 @@ assign RDATA_PARITY[0] = RDATA_VALID ? (^RDATA_DATA[63:0]) : 1'b0;
 
 
 wire w_AnyError_SIMPLE_TOP;
+// Gate RECEIVE parity ports with corresponding signal_valid signals
+wire w_WADDR_PARITY_gated = WADDR_VALID ? WADDR_PARITY : 1'b0;
+wire w_WDATA_PARITY_gated = WDATA_VALID ? WDATA_PARITY : 1'b0;
+wire w_RADDR_PARITY_gated = RADDR_VALID ? RADDR_PARITY : 1'b0;
+
 DCLS_COMPARATOR_TEMPLATE #(
     .DATA_WIDTH(3),
     .MAX_INPUT_WIDTH(64),
@@ -56,7 +63,7 @@ DCLS_COMPARATOR_TEMPLATE #(
 ) u_comparator_simple_top (
     .CLK(ACLK),
     .RESETN(RESETN_ACLK),
-    .DATA_IN_A({ WADDR_PARITY, WDATA_PARITY, RADDR_PARITY}),
+    .DATA_IN_A({ w_WADDR_PARITY_gated, w_WDATA_PARITY_gated, w_RADDR_PARITY_gated}),
     .DATA_IN_B({ w_waddr_data_parity_0, w_wdata_data_parity_0, w_raddr_data_parity_0 }),
     .ENERR_DCLS(r_ENERR_WADDR_PARITY),
     .FIERR_DCLS(r_FIERR_WADDR_PARITY),

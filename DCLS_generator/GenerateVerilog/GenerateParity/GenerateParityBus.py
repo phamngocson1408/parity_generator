@@ -36,6 +36,7 @@ class GenerateBus(GenerateVerilog):
     ip_receive_ports = {}  # Track all RECEIVE ports for each IP
     ip_receive_par_ports = {}  # Track all parity ports for RECEIVE signals
     ip_receive_par_widths = {}  # Track parity width for each RECEIVE signal
+    ip_receive_signal_valid_names = {}  # Track SIGNAL VALID NAME for each RECEIVE signal
 
     # BUS
     bus_par_blk = {}
@@ -355,6 +356,29 @@ class GenerateBus(GenerateVerilog):
                 # Use FI{error_port} as the fault injection control port name
                 fi_port_name = f"FI{first_err_port}"
                 
+                # Gate DATA_IN_A with corresponding signal_valid_name for each RECEIVE signal
+                # Get signal_valid_names for all receive signals
+                signal_valid_names = GenerateBus.ip_receive_signal_valid_names.get(ip_name, [])
+                
+                # Check if any signal_valid_name is specified
+                has_signal_valid = any(signal_valid_names)
+                
+                if has_signal_valid:
+                    # Generate gated parity ports with corresponding signal_valid signals
+                    err_blk += f"\n// Gate RECEIVE parity ports with corresponding signal_valid signals\n"
+                    gated_par_ports = []
+                    for idx, par_port in enumerate(receive_par_ports):
+                        gated_name = f"w_{par_port}_gated"
+                        signal_valid = signal_valid_names[idx] if idx < len(signal_valid_names) else ""
+                        if signal_valid:
+                            err_blk += f"wire {gated_name} = {signal_valid} ? {par_port} : 1'b0;\n"
+                        else:
+                            # If no signal_valid specified for this signal, don't gate it
+                            gated_name = par_port
+                        gated_par_ports.append(gated_name)
+                else:
+                    gated_par_ports = receive_par_ports
+                
                 err_blk += f"\nDCLS_COMPARATOR_TEMPLATE #(\n"
                 err_blk += f"    .DATA_WIDTH({total_par_width}),\n"
                 err_blk += f"    .MAX_INPUT_WIDTH({self.comparator_input_width}),\n"
@@ -363,9 +387,9 @@ class GenerateBus(GenerateVerilog):
                 err_blk += f"    .CLK({clk}),\n"
                 err_blk += f"    .RESETN({rst}),\n"
                 
-                # Concatenate all RECEIVE parity ports
+                # Concatenate all gated RECEIVE parity ports
                 err_blk += "    .DATA_IN_A({ "
-                for i, par_port in enumerate(receive_par_ports):
+                for i, par_port in enumerate(gated_par_ports):
                     if i > 0:
                         err_blk += ", "
                     err_blk += par_port
@@ -446,6 +470,10 @@ class GenerateBus(GenerateVerilog):
                 if self.ip_name not in GenerateBus.ip_receive_par_widths:
                     GenerateBus.ip_receive_par_widths[self.ip_name] = []
                 GenerateBus.ip_receive_par_widths[self.ip_name].append(par_width_bits)
+                # Track signal_valid_name for this RECEIVE signal
+                if self.ip_name not in GenerateBus.ip_receive_signal_valid_names:
+                    GenerateBus.ip_receive_signal_valid_names[self.ip_name] = []
+                GenerateBus.ip_receive_signal_valid_names[self.ip_name].append(self.signal_valid_name)
         # else: DRIVE mode - no fault injection
         GenerateBus.ip_par_blk[self.ip_name] += self._generate_parity_ip()
 
@@ -494,6 +522,7 @@ class GenerateBus(GenerateVerilog):
         rst = GenerateBus.ip_clk_rst_blk[ip_name].get('rst')
         drive_receive_mode = GenerateBus.ip_drive_receive_mode[ip_name]
 
+        module_blk += "`timescale 1ns / 1ps\n\n"
         module_blk += f"module {ip_name}_IP_PARITY_GEN ("
         module_blk += f"\n    input {clk}, {rst},"
         # NOTE: Fault injection disabled for driver signals - fierr ports removed for DRIVE mode
@@ -676,6 +705,7 @@ class GenerateBus(GenerateVerilog):
             # Initialize RECEIVE ports tracking
             GenerateBus.ip_receive_ports[self.ip_name] = []
             GenerateBus.ip_receive_par_ports[self.ip_name] = []
+            GenerateBus.ip_receive_signal_valid_names[self.ip_name] = []
 
             # Init BUS - REMOVED: BUS columns removed
             # GenerateBus.bus_clk_rst_blk[self.bus_name] = {"clk": self.clk_bus, "rst": self.rst_bus}

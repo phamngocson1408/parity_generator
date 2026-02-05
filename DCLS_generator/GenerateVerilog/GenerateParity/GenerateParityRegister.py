@@ -197,6 +197,7 @@ class GenerateRegister(GenerateVerilog):
             clk = GenerateRegister.reg_clk_rst_list[ip_name].get('clk')
             rst = GenerateRegister.reg_clk_rst_list[ip_name].get('rst')
 
+            module_blk += "`timescale 1ns / 1ps\n\n"
             module_blk += f"module {ip_name}_REG_PARITY_GEN ("
             # module_blk += f"\n    input {clk}, {rst},"
             module_blk += self._generate_port(ip_name)
