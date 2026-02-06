@@ -1,4 +1,5 @@
 *.v
+!DCLS_COMPARATOR_TEMPLATE.v
 *.sv
 *__pycache__/
 DCLS_generator/module_*/*
