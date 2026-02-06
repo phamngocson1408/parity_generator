@@ -145,7 +145,7 @@ module SIMPLE_TOP_NEW (
     reg [7:0] status_counter;
     assign STATUS = status_counter;
     
-    always @(posedge ACLK) begin
+    always @(posedge ACLK or negedge RESETN_ACLK) begin
         if (!RESETN_ACLK) begin
             status_counter <= 8'h00;
         end else begin
@@ -160,7 +160,7 @@ module SIMPLE_TOP_NEW (
     
     // Read data echo
     reg [63:0] rdata_reg;
-    always @(posedge ACLK) begin
+    always @(posedge ACLK or negedge RESETN_ACLK) begin
         if (!RESETN_ACLK) begin
             rdata_reg <= 64'h0;
         end else if (RADDR_VALID && RADDR_READY) begin
@@ -169,7 +169,7 @@ module SIMPLE_TOP_NEW (
     end
     
     reg rdata_valid_reg;
-    always @(posedge ACLK) begin
+    always @(posedge ACLK or negedge RESETN_ACLK) begin
         if (!RESETN_ACLK) begin
             rdata_valid_reg <= 1'b0;
         end else begin
