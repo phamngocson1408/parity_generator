@@ -8,7 +8,7 @@ from Parity_generator.common_utilities import bcolors, find_matching_port, remov
 from Parity_generator.extract_data_classes import ExtractPort
 from Parity_generator.locate_ip_classes import LocateModule, LocateInstance
 from Parity_generator.generate_bus_parity import GenerateBus
-from Parity_generator.RemoveVerilog.RemoveParity import RemoveParity
+from Parity_generator.remove_parity import RemoveParity
 from Parity_generator.extract_info_classes import ExtractINFO, ExtractINFO_Parity_Bus
 from collections import defaultdict
 

@@ -41,4 +41,3 @@ class RemoveParity:
                 content_copy = re.sub(pattern_wire, '', content_copy)
 
         return content_copy
-
