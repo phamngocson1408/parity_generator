@@ -1,6 +1,6 @@
 import re
 import pandas as pd
-from Parity_generator.common.prettycode import bcolors
+from Parity_generator.common_utilities import bcolors
 
 
 # ============================================================================

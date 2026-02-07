@@ -1,5 +1,5 @@
 import re
-from Parity_generator.common.prettycode import bcolors
+from Parity_generator.common_utilities import bcolors
 from dataclasses import dataclass
 from Parity_generator.moduleParser.comment_process import CommentProcess
 

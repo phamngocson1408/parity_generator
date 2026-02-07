@@ -1,4 +1,4 @@
-from Parity_generator.common.prettycode import bcolors
+from Parity_generator.common_utilities import bcolors
 
 
 # FLAT MODE

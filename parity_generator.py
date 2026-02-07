@@ -4,8 +4,7 @@ import pandas as pd
 from openpyxl import load_workbook
 from openpyxl.utils import get_column_letter
 
-from Parity_generator.common.prettycode import bcolors
-from Parity_generator.common.find_duplicate_port import find_matching_port
+from Parity_generator.common_utilities import bcolors, find_matching_port, remove_after_pattern
 from Parity_generator.extract_data_classes import ExtractPort
 from Parity_generator.locate_ip_classes import LocateModule, LocateInstance
 from Parity_generator.GenerateVerilog.GenerateParity.GenerateParity import GenerateParity
@@ -22,7 +21,6 @@ from Parity_generator.moduleCreator.declare_port import declare_parity_port_2001
 from Parity_generator.moduleParser.depart_module.depart_module import module_partition, module_declaration_partition
 
 from Parity_generator.moduleParser.recursive_read import *
-from Parity_generator.common.find_bracket import remove_after_pattern
 
 import warnings
 import os

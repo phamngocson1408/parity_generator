@@ -1,9 +1,25 @@
 import re
 import math
 from dataclasses import dataclass
-from Parity_generator.common.find_bracket import find_balance_square_bracket
+from Parity_generator.common_utilities import find_balance_square_bracket
 
 
+# ============================================================================
+# Helper Function: convert_to_decimal
+# ============================================================================
+def convert_to_decimal(value: str):
+    binary_pattern = r'\d+\'b([01]+)'
+    value = re.sub(binary_pattern, lambda m: str(int(m.group(1), 2)), value)
+    decimal_pattern = r'\d+\'d(\d+)'
+    value = re.sub(decimal_pattern, r'\1', value)
+    decimal_pattern = r'\'d(\d+)'
+    value = re.sub(decimal_pattern, r'\1', value)
+    return value
+
+
+# ============================================================================
+# Class: StatsClass
+# ============================================================================
 # For now, a class is not necessary since we're only tracking ff
 # It is just in case more measurements needed in the future
 @dataclass
@@ -103,15 +119,3 @@ class StatsClass:
                                 print(param_dict)
                                 raise ValueError("Infinite loop at converting parameter to real numbers")
         return param_dict
-
-
-def convert_to_decimal(value: str):
-    binary_pattern = r'\d+\'b([01]+)'
-    value = re.sub(binary_pattern, lambda m: str(int(m.group(1), 2)), value)
-    decimal_pattern = r'\d+\'d(\d+)'
-    value = re.sub(decimal_pattern, r'\1', value)
-    decimal_pattern = r'\'d(\d+)'
-    value = re.sub(decimal_pattern, r'\1', value)
-    return value
-                    
-

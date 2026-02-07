@@ -1,5 +1,5 @@
 import re
-from Parity_generator.common.find_bracket import find_balance_bracket
+from Parity_generator.common_utilities import find_balance_bracket
 from Parity_generator.moduleParser.comment_process import *
 from Parity_generator.locate_ip_classes import LocateModule, LocateInstanceU
 

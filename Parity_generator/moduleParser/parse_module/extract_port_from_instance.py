@@ -1,6 +1,6 @@
 import re
 
-from Parity_generator.common.prettycode import bcolors
+from Parity_generator.common_utilities import bcolors
 from Parity_generator.moduleParser.depart_module.depart_module import *
 
 from Parity_generator.moduleParser.extract_list_multipurpose import is_tie_float

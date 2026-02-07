@@ -1,6 +1,6 @@
 from typing import Optional
 from Parity_generator.moduleParser.extract_list_multipurpose import is_tie_float
-from Parity_generator.ClassStats.StatsClass import StatsClass
+from Parity_generator.stats_classes import StatsClass
 
 
 class GenerateVerilog:
