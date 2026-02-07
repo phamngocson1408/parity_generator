@@ -17,7 +17,6 @@ from Parity_generator.RemoveVerilog.RemoveParity import RemoveParity
 from Parity_generator.extract_info_classes import ExtractINFO, ExtractINFO_Parity_Signal, ExtractINFO_Parity_Bus, ExtractINFO_Parity_Register
 from collections import defaultdict
 
-from Parity_generator.instanceModifier.modify_instance import remove_dcls_port
 from Parity_generator.moduleParser.comment_process import CommentProcess
 
 from Parity_generator.moduleCreator.declare_port import declare_parity_port_2001, declare_parity_port_1995
@@ -25,7 +24,6 @@ from Parity_generator.moduleParser.depart_module.depart_module import module_par
 
 from Parity_generator.moduleParser.recursive_read import *
 from Parity_generator.common.find_bracket import remove_after_pattern
-from Parity_generator.function_wrapper.dcls_wrappers import filter_ip_index
 
 import warnings
 import os
@@ -587,17 +585,10 @@ if __name__ == "__main__":
                     module_whole_content = ParityRemoval._remove_assignment(module_whole_content, extra_outport_name)
                     cleaned_top_module_declaration_content = CommentProcess(
                         top_module_declaration_content).remove_comments().strip()
-                    if cleaned_top_module_declaration_content.endswith(","):
-                        top_module_declaration_content = remove_dcls_port(top_module_declaration_content)
 
-                    hash_indices = [index for index, char in enumerate(top_module_declaration_content) if char == '#']
-                    comment_processor = CommentProcess(top_module_declaration_content)
-                    multi_cmt_indices, single_cmt_indices = comment_processor.find_comments()
-                    param_usage = filter_ip_index(hash_indices, multi_cmt_indices, single_cmt_indices, 1)
                     top_param_declaration, top_port_declaration = module_declaration_partition(
                         top_module_declaration_content,
-#                        param_usage=False)
-                        param_usage=param_usage)
+                        param_usage=False)
 
                     PortExtractor = ExtractPort(top_port_declaration, top_module_whole_content)
                     port_declaration_1995, ANSI_C_port = PortExtractor._extract_declaration_valid()
