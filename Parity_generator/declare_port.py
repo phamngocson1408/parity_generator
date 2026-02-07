@@ -1,4 +1,4 @@
-from Parity_generator.moduleParser.comment_process import CommentProcess
+from Parity_generator.module_parser_utilities import CommentProcess
 
 
 def find_last_valid_index(port_declaration: str, cmt_indices: list):

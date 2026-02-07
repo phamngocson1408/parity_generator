@@ -1,5 +1,4 @@
 import hashlib
-from Parity_generator.moduleParser.comment_process import CommentProcess
 
 
 # ============================================================================
@@ -34,6 +33,9 @@ def filter_ip_index(index: int, multi_cmt_indices: list, single_cmt_indices: lis
 
 
 def find_balance_bracket(string: str):
+    # Lazy import to avoid circular dependency
+    from Parity_generator.module_parser_utilities import CommentProcess
+    
     comment_processor = CommentProcess(string)
     multi_cmt_indices, single_cmt_indices = comment_processor.find_comments()
     stack = 0

@@ -7,20 +7,14 @@ from openpyxl.utils import get_column_letter
 from Parity_generator.common_utilities import bcolors, find_matching_port, remove_after_pattern
 from Parity_generator.extract_data_classes import ExtractPort
 from Parity_generator.locate_ip_classes import LocateModule, LocateInstance
-from Parity_generator.GenerateVerilog.GenerateParity.GenerateParity import GenerateParity
-from Parity_generator.GenerateVerilog.GenerateParity.GenerateParityBus import GenerateBus
-from Parity_generator.GenerateVerilog.GenerateParity.GenerateParityRegister import GenerateRegister
-from Parity_generator.GenerateVerilog.GenerateVerilog import GenerateVerilog
+from Parity_generator.generate_bus_parity import GenerateBus
 from Parity_generator.RemoveVerilog.RemoveParity import RemoveParity
-from Parity_generator.extract_info_classes import ExtractINFO, ExtractINFO_Parity_Signal, ExtractINFO_Parity_Bus, ExtractINFO_Parity_Register
+from Parity_generator.extract_info_classes import ExtractINFO, ExtractINFO_Parity_Bus
 from collections import defaultdict
 
-from Parity_generator.moduleParser.comment_process import CommentProcess
-
-from Parity_generator.moduleCreator.declare_port import declare_parity_port_2001, declare_parity_port_1995
-from Parity_generator.moduleParser.depart_module.depart_module import module_partition, module_declaration_partition
-
-from Parity_generator.moduleParser.recursive_read import *
+from Parity_generator.module_parser_utilities import CommentProcess, module_partition, module_declaration_partition
+from Parity_generator.module_parser_utilities import *
+from Parity_generator.declare_port import declare_parity_port_2001, declare_parity_port_1995
 
 import warnings
 import os
@@ -134,11 +128,7 @@ if __name__ == "__main__":
 
     # file_path = "./Parity_generator/[INFO]_PARITY_TEMPLATE.xlsx"
     file_path = args.info
-    if args.type:
-        parity_scheme_list = [args.type]
-    else:
-        parity_scheme_list = ["SAFETY.PARITY"]
-    # parity_scheme = "SAFETY.REGISTER PARITY"
+    parity_scheme_list = ["SAFETY.PARITY"]
 
     # Parse group filter
     if args.group.upper() == 'ALL':
@@ -345,171 +335,7 @@ if __name__ == "__main__":
         if info_dict_list:
             update_info_file_with_md5(file_path, parity_scheme, info_dict_list, selected_groups)
         
-        if parity_scheme == "SAFETY.SIGNAL PARITY":
-            ip_filelist_dict_drv = {}
-            ip_filelist_dict_rcv = {}
-            if info_dict_list:
-                for info_dict in info_dict_list:
-                    # Calculate MD5 from info_dict
-                    md5_hash = calculate_md5_from_info_dict(info_dict)
-                    
-                    Parity_INFOExtractor = ExtractINFO_Parity_Signal(info_dict)
-                    ip_filelist_dict_drv[
-                        Parity_INFOExtractor._extract_drv_name()] = Parity_INFOExtractor._extract_filelist_list_drv()
-                    ip_filelist_dict_rcv[
-                        Parity_INFOExtractor._extract_rcv_name()] = Parity_INFOExtractor._extract_filelist_list_rcv()
-                    Parity_generator = GenerateParity(Parity_INFOExtractor)
-                    # Set MD5 hash to class
-                    GenerateParity.md5_hash = md5_hash
-                    Parity_generator._wrapper_drv()
-                    Parity_generator._wrapper_rcv()
-
-                dc_dir = f"./Parity_generator/module_parity/SIGNAL_DRIVER_PARITY.v"
-                dcls_file = open(dc_dir, 'w')
-                dcls_file.write(Parity_generator._generate_module_drv())
-
-                dc_dir = f"./Parity_generator/module_parity/SIGNAL_RECEIVER_PARITY.v"
-                dcls_file = open(dc_dir, 'w')
-                dcls_file.write(Parity_generator._generate_module_rcv())
-
-                port_list_drv = Parity_generator._list_port_drv()
-                port_list_rcv = Parity_generator._list_port_rcv()
-                Parity_generator._reset_generator()
-
-                # Driver
-                original_inport, original_outport, extra_inport, extra_outport = [], [], [], []
-                for ip, lst in port_list_drv.items():
-                    print("IP: ", ip)
-                    original_inport, original_outport, extra_inport, extra_outport = lst
-
-                    # top_hier_wrapper
-                    top_name = ip
-                    file_list_list = ip_filelist_dict_drv[ip]
-                    file_list = recursive_find_v(file_list_list)
-                    file_set = set(file_list)
-                    file_set_env = path_env(file_set)
-                    _, top_file_dir = recursive_read_v(file_set_env, top_name)
-                    print(f"Target top module '{top_name}' is found at '{top_file_dir}'")
-                    with open(top_file_dir, 'r') as file:
-                        top_file_contents_ori = file.read()
-
-                    ModuleLocator = LocateModule(top_file_contents_ori, top_name)
-                    before_top_file_contents, top_file_contents, after_top_file_contents = ModuleLocator._separate_ip()
-
-                    # Add error ports to top module
-                    top_file_contents_before_safety = top_file_contents
-                    _, module_whole_content = module_partition(top_file_contents, top_name)
-
-                    top_module_declaration_content, top_module_whole_content = module_partition(
-                        top_file_contents_before_safety,
-                        top_name)
-                    top_param_declaration, top_port_declaration = module_declaration_partition(
-                        top_module_declaration_content,
-                        param_usage=False)
-
-                    PortExtractor = ExtractPort(top_port_declaration, top_module_whole_content)
-                    port_declaration_1995, ANSI_C_port = PortExtractor._extract_declaration_valid()
-                    module_declaration_content = f"module {top_name}_PARITY "
-                    if top_param_declaration:
-                        module_declaration_content += "#(\n" + top_param_declaration + "\n)"
-                    module_declaration_content += "(\n" + declare_parity_port_2001(
-                        port_declaration_2001=top_port_declaration,
-                        ANSI_C=ANSI_C_port,
-                        extra_inport=extra_inport,
-                        extra_outport=extra_outport) + "\n);\n"
-                    module_declaration_content += "\n" + declare_parity_port_1995(
-                        port_declaration_1995=port_declaration_1995,
-                        ANSI_C=ANSI_C_port,
-                        extra_inport=extra_inport,
-                        extra_outport=extra_outport) + "\n"
-
-                    # Add instance
-                    all_port = original_inport + original_outport + extra_inport + extra_outport
-                    instance_content = f"\n{top_name}_SIGNAL_PARITY_GEN u_{top_name.lower()}_signal_parity_gen ("
-                    for port in all_port:
-                        instance_content += f"\n    .{port[1]} ({port[1]}),"
-                    instance_content = instance_content[:-1] + "\n);\n"
-
-                    module_whole_content = module_whole_content.rstrip()
-                    if module_whole_content.endswith('endmodule'):
-                        module_whole_content = module_whole_content[:-9].rstrip() + "\n" + instance_content + "endmodule"
-                    else:
-                        module_whole_content = module_whole_content + "\n" + instance_content + "endmodule"
-                    top_file_contents = module_declaration_content + module_whole_content
-                    par_dir = f"./Parity_generator/module_parity/SIGNAL_PARITY_DRV_{top_name}_TOP.v"
-                    par_file = open(par_dir, 'w')
-                    par_file.write(before_top_file_contents + top_file_contents + after_top_file_contents)
-
-                # Receiver
-                original_inport, original_outport, extra_inport, extra_outport = [], [], [], []
-                for ip, lst in port_list_rcv.items():
-                    print("IP: ", ip)
-                    original_inport, original_outport, extra_inport, extra_outport = lst
-
-                    # top_hier_wrapper
-                    top_name = ip
-                    file_list_list = ip_filelist_dict_rcv[ip]
-                    file_list = recursive_find_v(file_list_list)
-                    file_set = set(file_list)
-                    file_set_env = path_env(file_set)
-                    _, top_file_dir = recursive_read_v(file_set_env, top_name)
-                    print(f"Target top module '{top_name}' is found at '{top_file_dir}'")
-                    with open(top_file_dir, 'r') as file:
-                        top_file_contents_ori = file.read()
-
-                    ModuleLocator = LocateModule(top_file_contents_ori, top_name)
-                    before_top_file_contents, top_file_contents, after_top_file_contents = ModuleLocator._separate_ip()
-
-                    # Add error ports to top module
-                    top_file_contents_before_safety = top_file_contents
-                    _, module_whole_content = module_partition(top_file_contents, top_name)
-
-                    top_module_declaration_content, top_module_whole_content = module_partition(
-                        top_file_contents_before_safety,
-                        top_name)
-
-#                    hash_indices = [index for index, char in enumerate(top_module_declaration_content) if char == '#']
-#                    comment_processor = CommentProcess(top_module_declaration_content)
-#                    multi_cmt_indices, single_cmt_indices = comment_processor.find_comments()
-#                    param_usage = filter_ip_index(hash_indices, multi_cmt_indices, single_cmt_indices, 1)
-                    top_param_declaration, top_port_declaration = module_declaration_partition(
-                        top_module_declaration_content,
-                        param_usage=False)
-
-                    PortExtractor = ExtractPort(top_port_declaration, top_module_whole_content)
-                    port_declaration_1995, ANSI_C_port = PortExtractor._extract_declaration_valid()
-                    module_declaration_content = f"module {top_name}_PARITY "
-                    if top_param_declaration:
-                        module_declaration_content += "#(\n" + top_param_declaration + "\n)"
-                    module_declaration_content += "(\n" + declare_parity_port_2001(
-                        port_declaration_2001=top_port_declaration,
-                        ANSI_C=ANSI_C_port,
-                        extra_inport=extra_inport,
-                        extra_outport=extra_outport) + "\n);\n"
-                    module_declaration_content += "\n" + declare_parity_port_1995(
-                        port_declaration_1995=port_declaration_1995,
-                        ANSI_C=ANSI_C_port,
-                        extra_inport=extra_inport,
-                        extra_outport=extra_outport) + "\n"
-
-                    # Add instance
-                    all_port = original_inport + original_outport + extra_inport + extra_outport
-                    instance_content = f"\n{top_name}_SIGNAL_PARITY_GEN u_{top_name.lower()}_signal_parity_gen ("
-                    for port in all_port:
-                        instance_content += f"\n    .{port[1]} ({port[1]}),"
-                    instance_content = instance_content[:-1] + "\n);\n"
-
-                    module_whole_content = module_whole_content.rstrip()
-                    if module_whole_content.endswith('endmodule'):
-                        module_whole_content = module_whole_content[:-9].rstrip() + "\n" + instance_content + "endmodule"
-                    else:
-                        module_whole_content = module_whole_content + "\n" + instance_content + "endmodule"
-                    top_file_contents = module_declaration_content + module_whole_content
-                    par_dir = f"./Parity_generator/module_parity/SIGNAL_PARITY_RCV_{top_name}_TOP.v"
-                    par_file = open(par_dir, 'w')
-                    par_file.write(before_top_file_contents + top_file_contents + after_top_file_contents)
-
-        elif parity_scheme == "SAFETY.PARITY":
+        if parity_scheme == "SAFETY.PARITY":
             ip_filelist_dict = {}
             if info_dict_list:
                 for info_dict in info_dict_list:
@@ -661,89 +487,7 @@ if __name__ == "__main__":
                     print(bcolors.OKGREEN + f"Finished creating parity module {par_dir}" + bcolors.ENDC)
                 Parity_generator._reset_generator()
 
-        elif parity_scheme == "SAFETY.REGISTER PARITY":
-            ip_filelist_dict = {}
-            if info_dict_list:
-                for info_dict in info_dict_list:
-                    # Calculate MD5 from info_dict
-                    md5_hash = calculate_md5_from_info_dict(info_dict)
-                    
-                    Parity_INFOExtractor = ExtractINFO_Parity_Register(info_dict)
-                    ip_filelist_dict[
-                        Parity_INFOExtractor._extract_ip_name()] = Parity_INFOExtractor._extract_filelist_list_ip()
-                    Parity_generator = GenerateRegister(Parity_INFOExtractor)
-                    # Set MD5 hash to class
-                    GenerateRegister.md5_hash = md5_hash
-                    Parity_generator._wrapper_reg()
-
-                port_list = Parity_generator._list_port_ip()
-                original_inport, extra_inport, extra_outport = [], [], []
-                for ip, lst in port_list.items():
-                    print("IP: ", ip)
-                    original_inport, extra_inport, extra_outport = lst
-
-                    # top_hier_wrapper
-                    top_name = ip
-                    file_list_list = ip_filelist_dict[ip]
-                    file_list = recursive_find_v(file_list_list)
-                    file_set = set(file_list)
-                    file_set_env = path_env(file_set)
-                    _, top_file_dir = recursive_read_v(file_set_env, top_name)
-                    print(f"Target top module '{top_name}' is found at '{top_file_dir}'")
-                    with open(top_file_dir, 'r') as file:
-                        top_file_contents_ori = file.read()
-
-                    ModuleLocator = LocateModule(top_file_contents_ori, top_name)
-                    before_top_file_contents, top_file_contents, after_top_file_contents = ModuleLocator._separate_ip()
-
-                    # Add error ports to top module
-                    top_file_contents_before_safety = top_file_contents
-                    _, module_whole_content = module_partition(top_file_contents, top_name)
-
-                    top_module_declaration_content, top_module_whole_content = module_partition(
-                        top_file_contents_before_safety,
-                        top_name)
-                    top_param_declaration, top_port_declaration = module_declaration_partition(
-                        top_module_declaration_content,
-                        param_usage=False)
-
-                    PortExtractor = ExtractPort(top_port_declaration, top_module_whole_content)
-                    port_declaration_1995, ANSI_C_port = PortExtractor._extract_declaration_valid()
-                    module_declaration_content = f"module {top_name}_PARITY "
-                    if top_param_declaration:
-                        module_declaration_content += "#(\n" + top_param_declaration + "\n)"
-                    module_declaration_content += "(\n" + declare_parity_port_2001(
-                        port_declaration_2001=top_port_declaration,
-                        ANSI_C=ANSI_C_port,
-                        extra_inport=extra_inport,
-                        extra_outport=extra_outport) + "\n);\n"
-                    module_declaration_content += "\n" + declare_parity_port_1995(
-                        port_declaration_1995=port_declaration_1995,
-                        ANSI_C=ANSI_C_port,
-                        extra_inport=extra_inport,
-                        extra_outport=extra_outport) + "\n"
-
-                    # Add logic
-                    parity_content = ""
-                    parity_content += GenerateRegister.valid_blk[top_name]
-
-                    instance_content = ""
-                    # Add instance
-                    all_port = original_inport + extra_inport + extra_outport
-                    instance_content += f"{top_name}_REG_PARITY_GEN u_{top_name.lower()}_reg_parity_gen ("
-                    for port in all_port:
-                        instance_content += f"\n    .{port[1]} ({port[1]}),"
-                    instance_content = instance_content[:-1] + "\n);\n"
-
-                    module_whole_content = module_whole_content[
-                                           :-9] + instance_content + parity_content + "\n\nendmodule"
-                    top_file_contents = module_declaration_content + module_whole_content
-                    par_dir = f"./Parity_generator/module_parity/REGISTER_PARITY_{top_name}_TOP.v"
-                    par_file = open(par_dir, 'w')
-                    par_file.write(before_top_file_contents + top_file_contents + after_top_file_contents)
-                par_dir = f"./Parity_generator/module_parity/REGISTER_PARITY.v"
-                par_file = open(par_dir, 'w')
-                par_file.write(Parity_generator._generate_module_reg())
+                Parity_generator._reset_generator()
 
         else:
             raise ValueError("Invalid Parity scheme")

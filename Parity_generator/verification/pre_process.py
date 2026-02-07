@@ -1,4 +1,4 @@
-from Parity_generator.moduleParser.depart_module.depart_module import *
+from Parity_generator.module_parser_utilities import *
 
 from Parity_generator.extract_data_classes import ExtractParam
 from Parity_generator.extract_data_classes import ExtractInport

@@ -1,5 +1,5 @@
 import re
-from Parity_generator.moduleParser.comment_process import CommentProcess
+from Parity_generator.module_parser_utilities import CommentProcess
 
 
 # ============================================================================
