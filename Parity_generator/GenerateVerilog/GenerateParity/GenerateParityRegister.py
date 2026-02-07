@@ -1,7 +1,7 @@
 import re
 
 from Parity_generator.GenerateVerilog.GenerateVerilog import GenerateVerilog
-from Parity_generator.ClassExtractINFO.ExtractINFO_Parity.ExtractINFO_Parity_Register import ExtractINFO_Parity_Register
+from Parity_generator.extract_info_classes import ExtractINFO_Parity_Register
 from Parity_generator.instanceModifier.modify_instance import *
 import warnings
 warnings.simplefilter(action='ignore', category=FutureWarning)

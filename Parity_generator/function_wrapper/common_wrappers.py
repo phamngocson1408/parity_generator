@@ -1,4 +1,4 @@
-from Parity_generator.ClassExtractData.ExtractPort import ExtractPort
+from Parity_generator.extract_data_classes import ExtractPort
 from Parity_generator.moduleCreator.declare_port import declare_parity_port_2001, declare_parity_port_1995
 from Parity_generator.moduleParser.depart_module.depart_module import module_partition, module_declaration_partition
 

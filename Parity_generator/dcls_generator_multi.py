@@ -14,14 +14,14 @@ from Parity_generator.GenerateVerilog.GenerateDCLS import GenerateDCLS
 from Parity_generator.GenerateEnv.GenerateFM import GenerateFM
 from Parity_generator.RemoveVerilog.RemoveDCLS import RemoveDCLS
 
-from Parity_generator.ClassExtractData.ExtractPort import ExtractPort
-from Parity_generator.ClassExtractData.ExtractParam import ExtractParam
-from Parity_generator.ClassExtractData.ExtractInport import ExtractInport
-from Parity_generator.ClassExtractData.ExtractOutport import ExtractOutport
+from Parity_generator.extract_data_classes import ExtractPort
+from Parity_generator.extract_data_classes import ExtractParam
+from Parity_generator.extract_data_classes import ExtractInport
+from Parity_generator.extract_data_classes import ExtractOutport
 
 from Parity_generator.ClassStats.StatsClass import StatsClass
-from Parity_generator.ClassExtractINFO.ExtractINFO import ExtractINFO
-from Parity_generator.ClassExtractINFO.ExtractINFO_DCLS import ExtractINFO_DCLS
+from Parity_generator.extract_info_classes import ExtractINFO
+from Parity_generator.extract_info_classes import ExtractINFO_DCLS
 
 from Parity_generator.moduleParser.comment_process import CommentProcess
 

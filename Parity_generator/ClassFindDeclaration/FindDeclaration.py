@@ -1,5 +1,5 @@
 import re
-from Parity_generator.ClassExtractData.ExtractPort import ExtractPort
+from Parity_generator.extract_data_classes import ExtractPort
 
 
 class FindDeclaration:

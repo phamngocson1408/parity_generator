@@ -1,4 +1,0 @@
-#!/bin/tcsh
-
-fm_shell -file formal_cmd_script.tcl | tee formal.log 
-

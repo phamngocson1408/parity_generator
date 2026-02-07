@@ -1,5 +1,5 @@
 from Parity_generator.GenerateVerilog.GenerateVerilog import GenerateVerilog
-from Parity_generator.ClassExtractINFO.ExtractINFO_Parity.ExtractINFO_Parity_Signal import ExtractINFO_Parity_Signal
+from Parity_generator.extract_info_classes import ExtractINFO_Parity_Signal
 import warnings
 
 warnings.simplefilter(action='ignore', category=FutureWarning)

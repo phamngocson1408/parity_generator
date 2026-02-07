@@ -1,5 +1,5 @@
 from Parity_generator.GenerateVerilog.GenerateVerilog import GenerateVerilog
-from Parity_generator.ClassExtractINFO.ExtractINFO_Parity.ExtractINFO_Parity_Bus import ExtractINFO_Parity_Bus
+from Parity_generator.extract_info_classes import ExtractINFO_Parity_Bus
 from Parity_generator.instanceModifier.modify_instance import *
 from Parity_generator.common.prettycode import bcolors
 import warnings

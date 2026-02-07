@@ -1,8 +1,8 @@
 from Parity_generator.moduleParser.depart_module.depart_module import *
 
-from Parity_generator.ClassExtractData.ExtractParam import ExtractParam
-from Parity_generator.ClassExtractData.ExtractInport import ExtractInport
-from Parity_generator.ClassExtractData.ExtractOutport import ExtractOutport
+from Parity_generator.extract_data_classes import ExtractParam
+from Parity_generator.extract_data_classes import ExtractInport
+from Parity_generator.extract_data_classes import ExtractOutport
 
 from Parity_generator.ClassLocateIP.LocateModule import LocateModule
 from Parity_generator.ClassLocateIP.LocateInstance import LocateInstance

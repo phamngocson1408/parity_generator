@@ -13,8 +13,8 @@ from Parity_generator.moduleCreator.insert_verification import insert_error_conn
 from Parity_generator.GenerateVerilog.GenerateDCLS import GenerateDCLS
 from Parity_generator.ClassStats.StatsClass import StatsClass
 
-from Parity_generator.ClassExtractData.ExtractPort import ExtractPort
-from Parity_generator.ClassExtractData.ExtractParam import ExtractParam
+from Parity_generator.extract_data_classes import ExtractPort
+from Parity_generator.extract_data_classes import ExtractParam
 
 from Parity_generator.ClassLocateIP.LocateModule import LocateModule
 from Parity_generator.ClassLocateIP.LocateInstance import LocateInstance

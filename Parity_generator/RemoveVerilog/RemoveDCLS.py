@@ -1,7 +1,7 @@
 # The script doesn't provide artistic quality lol
 
 import re
-from Parity_generator.ClassExtractINFO.ExtractINFO_DCLS import ExtractINFO_DCLS
+from Parity_generator.extract_info_classes import ExtractINFO_DCLS
 from Parity_generator.instanceModifier.modify_instance import remove_dcls_signal, remove_dcls_port, add_last_valid_comma
 
 

@@ -2,7 +2,7 @@ import re
 import itertools
 from typing import Optional
 
-from Parity_generator.ClassExtractINFO.ExtractINFO_DCLS import ExtractINFO_DCLS
+from Parity_generator.extract_info_classes import ExtractINFO_DCLS
 from Parity_generator.GenerateVerilog.GenerateVerilog import GenerateVerilog
 from Parity_generator.ClassStats.StatsClass import StatsClass
 
