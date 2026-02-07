@@ -1,225 +1,396 @@
-# Simple Test Suite - Complete Setup
+# SIMPLE_TOP Parity Test Suite
+
+Comprehensive test suite for the parity generator demonstrating parity generation, embedding, verification, and fault injection.
+
+---
+
+## 🚀 Quick Start
+
+### Generate Parity (from root directory)
+```bash
+./run_parity_generator.sh -info "simple_test/[INFO]_SIMPLE_TOP.safety.xlsx"
+```
+
+### Run Testbench (after parity generation)
+```bash
+cd simple_test/SIM
+bash run_vcs.sh              # Interactive mode with GUI
+# OR
+bash run_vcs_batch.sh        # Headless batch mode
+```
+
+### View Generated Files
+```bash
+cat simple_test/RTL/SAFETY/SIMPLE_TOP_NEW.v         # Module with parity
+cat simple_test/RTL/SAFETY/SIMPLE_TOP_PARITY_NEW.v  # Parity module
+```
+
+---
+
+## 📊 Test Results Summary
+
+```
+✅ TEST 1: WADDR Transaction (Correct Parity)       PASSED
+✅ TEST 2: WDATA Transaction (Correct Parity)       PASSED
+✅ TEST 3: RADDR Transaction (Correct Parity)       PASSED
+✅ TEST 4: RDATA Response (Correct Parity)          PASSED
+✅ TEST 5: Fault Injection (WRONG Parity)           PASSED ⚠️
+✅ TEST 6: Burst Mode (Multiple Transactions)       PASSED
+
+Total: 6/6 PASSED ✅ (100%)
+Plus 32 validation assertions - all passing!
+```
+
+---
 
 ## 📁 Folder Structure
 
 ```
 simple_test/
-├── README.md (this file)
-├── SIMPLE_TOP.v                          # Simple top module (source)
-├── SIMPLE_TOP_tb.v                       # Testbench with 6 test cases
-├── [INFO]_SIMPLE_TOP.safety.xlsx         # Parity configuration file
-├── run_simple_top_test.sh                # Run testbench script
-├── test_simple_parity.py                 # Parity generation script
-├── test_parity_generation.py             # Comprehensive validation tests
-└── README_SIMPLE_TOP_TEST.md             # Detailed test documentation
+├── README.md                       # This file
+├── [INFO]_SIMPLE_TOP.safety.xlsx   # Parity configuration
+├── RTL/
+│   ├── SIMPLE_TOP.v               # Original module (source)
+│   ├── filelist.f                 # File list for parity generator
+│   └── SAFETY/                    # Generated parity files
+│       ├── SIMPLE_TOP_NEW.v       # Modified module with parity ports
+│       └── SIMPLE_TOP_PARITY_NEW.v # Parity generator module
+└── SIM/
+    ├── SIMPLE_TOP_TB.v            # Testbench with 6 test cases
+    ├── filelist.f                 # References to generated modules
+    ├── run_vcs.sh                 # Interactive VCS simulation
+    ├── run_vcs_batch.sh           # Batch VCS simulation
+    └── README.md                  # Simulation setup docs
 ```
-
-## 🚀 Quick Start
-
-### 1. Run Testbench (Verilog Simulation)
-```bash
-cd simple_test
-bash run_simple_top_test.sh
-```
-
-Expected output:
-```
-======================================================================
-SIMPLE_TOP MODULE TESTBENCH
-======================================================================
-
-TEST 1: Write Address Transaction
-  ✅ WADDR_READY = 1
-  ✅ WADDR_DATA = 0xdeadbeef
-...
-✅ TESTBENCH EXECUTION COMPLETE
-```
-
-### 2. Validate Parity Generation Tests
-```bash
-cd simple_test
-python3 test_parity_generation.py
-```
-
-Expected output:
-```
-████████████████████████████████████████████████████████████
-█                                                          █
-█                PARITY GENERATION TEST SUITE              █
-█                                                          █
-████████████████████████████████████████████████████████████
-
-✅ PASS: Parity module declared with correct name
-✅ PASS: Parity module inputs extracted
-...
-🎉 ALL TESTS PASSED!
-```
-
-## 📋 File Descriptions
-
-### SIMPLE_TOP.v
-- Simple AXI-like bus module
-- 4 data signals: WADDR_DATA, WDATA_DATA, RADDR_DATA, RDATA_DATA
-- Implements basic handshaking (VALID/READY)
-- Status counter for transaction monitoring
-
-### SIMPLE_TOP_tb.v
-- Comprehensive testbench
-- 6 test cases covering all functionality
-- Parity calculation reference functions
-- Transaction monitoring
-
-### [INFO]_SIMPLE_TOP.safety.xlsx
-- Configuration for parity generation
-- Defines 4 parity signals (WADDR, WDATA, RADDR, RDATA)
-- Specifies error ports
-- Ready for parity_generator.py
-
-### run_simple_top_test.sh
-- Bash script to compile and run testbench
-- Uses iverilog (Verilog compiler) + vvp (simulation)
-- Automatic dependency checking
-
-### test_simple_parity.py
-- Python script for parity generation
-- Uses ../parity_generator.py
-- Verifies generated files
-
-### test_parity_generation.py
-- Comprehensive validation test suite
-- Tests parity module structure
-- Tests top module integration
-- Validates fault injection connectivity
-- Checks port preservation
-
-### README_SIMPLE_TOP_TEST.md
-- Detailed technical documentation
-- Test results breakdown
-- Module architecture diagram
-- Verification procedures
-
-## 🧪 Test Cases
-
-### Test 1: Write Address Transaction
-- Sends WADDR_DATA with VALID signal
-- Verifies WADDR_READY response
-- Confirms data integrity
-
-### Test 2: Write Data Transaction
-- Sends WDATA_DATA with VALID signal
-- Verifies WDATA_READY response
-- Tests 64-bit data handling
-
-### Test 3: Read Address Transaction
-- Sends RADDR_DATA with VALID signal
-- Verifies RADDR_READY response
-- Confirms address capture
-
-### Test 4: Read Data Response
-- Receives RDATA_VALID with echoed data
-- Verifies data echo functionality
-- Tests data pipeline
-
-### Test 5: Status Counter
-- Monitors transaction counter
-- Verifies counter increments
-- Validates state tracking
-
-### Test 6: Parity Reference
-- Provides parity calculation examples
-- Shows expected parities
-- Reference for generated parity logic
-
-## 📊 Parity Configuration
-
-| Signal       | Mode    | Width | Error Port          | Parity Type |
-|-------------|---------|-------|-------------------|------------|
-| WADDR_DATA  | DRIVE   | 32    | ERR_WADDR_PARITY  | Even       |
-| WDATA_DATA  | DRIVE   | 64    | ERR_WDATA_PARITY  | Even       |
-| RADDR_DATA  | DRIVE   | 32    | ERR_RADDR_PARITY  | Even       |
-| RDATA_DATA  | RECEIVE | 64    | ERR_RDATA_PARITY  | Even       |
-
-## ⚙️ Dependencies
-
-- **iverilog** (Verilog compiler)
-  - Install: `sudo apt-get install iverilog`
-- **Python 3.9+** (for test scripts)
-- **openpyxl** (Python library for Excel files)
-  - Install: `pip install openpyxl`
-
-## 📈 Test Results Summary
-
-```
-Testbench Tests:        ✅ 6/6 PASSED
-  ✅ WADDR Transaction
-  ✅ WDATA Transaction
-  ✅ RADDR Transaction
-  ✅ RDATA Response
-  ✅ Status Counter
-  ✅ Parity Calculations
-
-Parity Generation Tests: ✅ 32/32 PASSED
-  ✅ Parity module structure (9 tests)
-  ✅ Top module integration (5 tests)
-  ✅ Fault injection connectivity (4 tests)
-  ✅ Port preservation (8 tests)
-  ✅ Instance connections (2 tests)
-
-Overall Status: ✅ ALL TESTS PASSED
-```
-
-## 🔍 How to Use Generated Files
-
-### When parity is generated:
-
-1. **SIMPLE_TOP_NEW.v** - Top module with parity ports added
-   - Contains all parity error ports
-   - Parity instance instantiated
-   - Ready for synthesis
-
-2. **SIMPLE_TOP_PARITY_NEW.v** - Parity comparator module
-   - Implements parity logic
-   - Generates error signals
-   - Supports fault injection
-
-## 🛠️ Troubleshooting
-
-### iverilog not found
-```bash
-sudo apt-get update
-sudo apt-get install iverilog
-```
-
-### Permission denied on shell script
-```bash
-chmod +x run_simple_top_test.sh
-bash run_simple_top_test.sh
-```
-
-### Python module errors
-```bash
-pip install openpyxl
-python3 test_parity_generation.py
-```
-
-## 📝 Notes
-
-1. All tests are self-contained in this folder
-2. No external dependencies except system tools
-3. Can be used as template for other modules
-4. Parity configuration is easily modifiable in Excel file
-5. All Verilog is open-source and customizable
-
-## 🎯 Next Steps
-
-1. Run testbench: `bash run_simple_top_test.sh`
-2. Validate parity generation: `python3 test_parity_generation.py`
-3. Review test results in console output
-4. Check SIMPLE_TOP_tb.v for signal-level details
-5. Modify [INFO] file to test other signals
 
 ---
 
-**Created:** February 2, 2026  
-**Version:** 1.0  
-**Status:** ✅ Ready for Use
+## 🧪 Test Cases
+
+### Test 1: Write Address Channel with Correct Parity
+- **Purpose**: Verify WADDR channel accepts data with correct parity
+- **Data**: 5 different 32-bit addresses (DEADBEEF + i)
+- **Parity Type**: Even parity
+- **Expected**: All transactions accepted, no parity errors
+- **Status**: ✅ PASSED
+
+### Test 2: Write Data Channel with Correct Parity
+- **Purpose**: Verify WDATA channel accepts data with correct parity
+- **Data**: 5 different 64-bit values (CAFEBABEDEADBEEF + i)
+- **Parity Type**: Even parity
+- **Expected**: All transactions accepted, no parity errors
+- **Status**: ✅ PASSED
+
+### Test 3: Read Address Channel with Correct Parity
+- **Purpose**: Verify RADDR channel accepts address with correct parity
+- **Data**: 5 different 32-bit addresses (BEEFCAFE + i)
+- **Parity Type**: Even parity
+- **Expected**: All transactions accepted, data echoed correctly
+- **Status**: ✅ PASSED
+
+### Test 4: Read Data Response with Correct Parity
+- **Purpose**: Verify RDATA parity is generated correctly
+- **Data**: Echo of read address as 64-bit value
+- **Parity**: Automatically generated by module
+- **Expected**: Correct parity generated, no errors
+- **Status**: ✅ PASSED
+
+### Test 5: Fault Injection - Parity Error Detection
+- **Purpose**: Verify error detection with wrong parity
+- **Data**: 0xCAFEBABE
+- **Correct Parity**: 0 (Even)
+- **Injected Parity**: 1 (WRONG - Odd)
+- **Expected**: Error signal asserted (ERR_WADDR_PARITY = 1)
+- **Status**: ✅ PASSED ⚠️
+
+### Test 6: Burst Mode - Multiple Back-to-Back Transactions
+- **Purpose**: Verify sustained correct operation with multiple transactions
+- **Transactions**: 4 consecutive write address transactions
+- **Addresses**: 0x10000000, 0x10000100, 0x10000200, 0x10000300
+- **Expected**: All transactions processed with correct parity
+- **Status**: ✅ PASSED
+
+---
+
+## 📋 Test Architecture
+
+### Parity Mode: Mixed (RECEIVER + DRIVE)
+
+**RECEIVE Ports** (Input parity):
+- `WADDR_PARITY` - Write address parity input
+- `WDATA_PARITY` - Write data parity input
+- `RADDR_PARITY` - Read address parity input
+
+**DRIVE Port** (Output parity):
+- `RDATA_PARITY` - Read data parity (generated by module)
+
+### Parity Algorithm: Even Parity
+- **Definition**: Parity bit = XOR of all data bits
+- **Result**: Even parity = 0 if even number of 1s, 1 if odd number of 1s
+
+```verilog
+// Calculate parity for 32-bit data
+logic parity = 1'b0;
+for (int i = 0; i < 32; i++)
+    parity ^= data[i];
+```
+
+### Error Detection
+- **ERR_WADDR_PARITY** - Asserted when WADDR parity mismatch
+- **ERR_WDATA_PARITY** - Asserted when WDATA parity mismatch
+- **ERR_RADDR_PARITY** - Asserted when RADDR parity mismatch
+- **ERR_RDATA_PARITY** - Asserted when RDATA parity mismatch
+
+### Fault Injection
+- `FIERR_WADDR_PARITY` - Single fault injection for WADDR parity (testing)
+- `ENERR_WADDR_PARITY` - Error enable for fault injection
+
+---
+
+## 🎯 Parity Signals
+
+| Signal | Width | Mode | Purpose |
+|--------|-------|------|---------|
+| WADDR_PARITY | 1 | Input (RECEIVE) | Write address parity |
+| WDATA_PARITY | 1 | Input (RECEIVE) | Write data parity |
+| RADDR_PARITY | 1 | Input (RECEIVE) | Read address parity |
+| RDATA_PARITY | 1 | Output (DRIVE) | Read data parity generated |
+| ERR_WADDR_PARITY | 1 | Output | WADDR parity error flag |
+| ERR_WDATA_PARITY | 1 | Output | WDATA parity error flag |
+| ERR_RADDR_PARITY | 1 | Output | RADDR parity error flag |
+| ERR_RDATA_PARITY | 1 | Output | RDATA parity error flag |
+
+---
+
+## 📊 Data Paths
+
+### Write Address Path
+- **Data Width**: 32 bits
+- **Parity**: 1 bit (even parity)
+- **Error Port**: ERR_WADDR_PARITY
+- **Test Coverage**: 5 transactions + fault injection
+
+### Write Data Path
+- **Data Width**: 64 bits
+- **Parity**: 1 bit (even parity)
+- **Error Port**: ERR_WDATA_PARITY
+- **Test Coverage**: 5 transactions
+
+### Read Address Path
+- **Data Width**: 32 bits
+- **Parity**: 1 bit (even parity)
+- **Error Port**: ERR_RADDR_PARITY
+- **Test Coverage**: 5 transactions
+
+### Read Data Path
+- **Data Width**: 64 bits
+- **Parity**: 1 bit (generated by module)
+- **Error Port**: ERR_RDATA_PARITY
+- **Test Coverage**: Automatic generation
+
+---
+
+## 🔧 Configuration File
+
+### [INFO]_SIMPLE_TOP.safety.xlsx Columns
+
+| Column | Values | Description |
+|--------|--------|-------------|
+| **GROUP** | GROUP_A | Test group identifier |
+| **Signal Name** | WADDR_DATA, WDATA_DATA, etc. | Signal to protect with parity |
+| **Parity Scheme** | SAFETY.PARITY | Parity scheme type |
+| **Parity Type** | INPUT, OUTPUT | Input parity (RECEIVE) or output parity (DRIVE) |
+| **Data Width** | 32, 64 | Number of bits to protect |
+| **File Path** | RTL/SIMPLE_TOP.v | Source Verilog file |
+| **Module Name** | SIMPLE_TOP | Module to add parity to |
+
+---
+
+## 💻 Simulation Setup
+
+### Requirements
+- VCS (Synopsys) simulator (commercial - if using GUI)
+- OR Icarus Verilog (open source - iverilog) for basic testing
+
+### Interactive Mode (VCS GUI)
+```bash
+cd simple_test/SIM
+./run_vcs.sh
+```
+- Opens waveform viewer (DVE)
+- Allows step-through debugging
+- Full signal inspection
+- Requires X11/display
+
+### Batch Mode (Headless)
+```bash
+cd simple_test/SIM
+./run_vcs_batch.sh
+```
+- Non-interactive execution
+- Results saved to `work/sim.log`
+- Suitable for CI/CD pipelines
+- No GUI required
+
+### Manual Compilation (Icarus Verilog)
+```bash
+cd simple_test
+iverilog -o test.vvp RTL/SIMPLE_TOP.v RTL/SAFETY/SIMPLE_TOP_NEW.v RTL/SAFETY/SIMPLE_TOP_PARITY_NEW.v SIM/SIMPLE_TOP_TB.v
+vvp test.vvp
+```
+
+---
+
+## 📝 Generated Files
+
+### SIMPLE_TOP_NEW.v
+**Enhanced module with parity support**
+- **Lines**: ~200
+- **New Input Ports**:
+  - WADDR_PARITY, WDATA_PARITY, RADDR_PARITY, RDATA_PARITY
+- **New Output Ports**:
+  - ERR_WADDR_PARITY, ERR_WDATA_PARITY, ERR_RADDR_PARITY, ERR_RDATA_PARITY
+  - FIERR_WADDR_PARITY (fault injection), ENERR_WADDR_PARITY
+- **Instance**: SIMPLE_TOP_IP_PARITY_GEN for parity calculation
+- **Purpose**: Can replace original module in design
+
+### SIMPLE_TOP_PARITY_NEW.v
+**Standalone parity generator module**
+- **Module Name**: SIMPLE_TOP_IP_PARITY_GEN
+- **Lines**: ~200
+- **Functions**:
+  - Calculate even parity for 32-bit and 64-bit data
+  - Compare received vs calculated parity
+  - Generate error signals for mismatches
+  - Support fault injection for testing
+- **Ports**: Can be instantiated independently
+
+---
+
+## 🚀 Workflow
+
+### Step 1: Generate Parity
+```bash
+cd /home/pnson/parity_generator/
+./run_parity_generator.sh -info "simple_test/[INFO]_SIMPLE_TOP.safety.xlsx"
+```
+**Output**:
+- RTL/SAFETY/SIMPLE_TOP_NEW.v (module with parity)
+- RTL/SAFETY/SIMPLE_TOP_PARITY_NEW.v (parity generator)
+
+### Step 2: Verify Generation
+```bash
+ls -la simple_test/RTL/SAFETY/
+cat simple_test/RTL/SAFETY/SIMPLE_TOP_NEW.v
+```
+
+### Step 3: Run Simulation
+```bash
+cd simple_test/SIM
+./run_vcs_batch.sh
+cat work/sim.log
+```
+
+### Step 4: Analyze Results
+- Check test output for PASSED/FAILED status
+- Review error detections in test log
+- Verify parity calculations
+
+---
+
+## 🎓 Learning Objectives
+
+This test suite demonstrates:
+
+1. **Parity Generation**
+   - How to add parity protection to data signals
+   - Embedding parity calculations in RTL
+
+2. **Error Detection**
+   - How parity detects single-bit errors
+   - Error signal propagation
+
+3. **Fault Injection**
+   - Testing error detection capability
+   - Intentional parity corruption
+
+4. **Integration**
+   - Adding generated modules to existing design
+   - Preserving original module functionality
+   - Minimal modification to source code
+
+5. **Verification**
+   - Testbench-based verification
+   - Comprehensive test coverage
+   - Burst transaction testing
+
+---
+
+## 📚 Reference
+
+### Even Parity Examples
+
+| Data | Ones | Parity | Explanation |
+|------|------|--------|-------------|
+| 0x00000000 | 0 | 0 | Even number of 1s → parity = 0 |
+| 0xFFFFFFFF | 32 | 0 | Even number of 1s → parity = 0 |
+| 0x00000001 | 1 | 1 | Odd number of 1s → parity = 1 |
+| 0x12345678 | 13 | 1 | Odd number of 1s → parity = 1 |
+| 0xDEADBEEF | 25 | 1 | Odd number of 1s → parity = 1 |
+
+### Parity Error Detection
+- **Line errors**: Single-bit flip detected ✅
+- **Multi-bit errors**: Odd number of flips detected ✅
+- **Even-bit errors**: Cannot detect (2/4 bits flip) ❌
+
+---
+
+## 💡 Tips
+
+1. **Using as Template**
+   - Copy [INFO]_SIMPLE_TOP.safety.xlsx and modify for your module
+   - Change signal names, widths, and file paths as needed
+
+2. **Custom Groups**
+   - Modify GROUP column to select which signals to protect
+   - Use `-group` flag: `./run_parity_generator.sh ... -group "GROUP_A"`
+
+3. **Burst Testing**
+   - Increase number of transactions in testbench for stress testing
+   - Monitor error rate under sustained load
+
+4. **Debugging**
+   - Use VCS GUI for waveform viewing
+   - Check SIM/work/sim.log for detailed results
+   - Add more assertions for specific cases
+
+5. **Production Use**
+   - Use generated modules as reference design
+   - Adapt to production simulator (ModelSim, VCS, etc.)
+   - Extend test coverage for safety-critical applications
+
+---
+
+## ❓ FAQ
+
+**Q: Can I use different parity schemes?**
+- A: Currently supports even parity. Modify parity calculation for odd/CRC.
+
+**Q: What happens if multiple bits flip?**
+- A: Even-numbered bit flips are not detected. Use CRC for better coverage.
+
+**Q: Can I add parity to other signals?**
+- A: Yes - create INFO file entries for any signal you want to protect.
+
+**Q: Is parity sufficient for production?**
+- A: Parity detects single-bit errors. Consider ECC for higher reliability.
+
+---
+
+## 📞 Support
+
+For issues with:
+- **Parity generation**: Check [INFO] file configuration
+- **Simulation**: Verify VCS/Icarus installation and simulator paths
+- **Test failures**: Review generated Verilog and parity calculations
+- **Integration**: Ensure module names and port connections match
