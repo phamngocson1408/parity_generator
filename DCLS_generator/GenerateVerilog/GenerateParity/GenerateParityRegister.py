@@ -10,6 +10,10 @@ warnings.simplefilter(action='ignore', category=FutureWarning)
 class GenerateRegister(GenerateVerilog):
     safety_scheme = 'Parity Register'
     ip_set = set()
+    
+    # MD5 and version tracking
+    md5_hash = ""
+    script_version = "3.0.0"
 
     par_wire_blk = {}
     par_reg_blk = {}
@@ -198,6 +202,10 @@ class GenerateRegister(GenerateVerilog):
             rst = GenerateRegister.reg_clk_rst_list[ip_name].get('rst')
 
             module_blk += "`timescale 1ns / 1ps\n\n"
+            # Add MD5 and version header
+            if GenerateRegister.md5_hash:
+                module_blk += f"// MD5@INFO : {GenerateRegister.md5_hash}\n"
+                module_blk += f"// Version@Script : {GenerateRegister.script_version}\n"
             module_blk += f"module {ip_name}_REG_PARITY_GEN ("
             # module_blk += f"\n    input {clk}, {rst},"
             module_blk += self._generate_port(ip_name)

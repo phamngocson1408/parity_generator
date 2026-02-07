@@ -9,6 +9,10 @@ class GenerateParity(GenerateVerilog):
     safety_scheme = 'Parity'
     drv_set = set()
     rcv_set = set()
+    
+    # MD5 and version tracking
+    md5_hash = ""
+    script_version = "3.0.0"
 
     drv_clk_rst_blk = {}
     drv_port_blk = {}
@@ -267,6 +271,10 @@ class GenerateParity(GenerateVerilog):
             rst = GenerateParity.drv_clk_rst_blk[drv_name].get('rst')
 
             module_blk += "`timescale 1ns / 1ps\n\n"
+            # Add MD5 and version header
+            if GenerateParity.md5_hash:
+                module_blk += f"// MD5@INFO : {GenerateParity.md5_hash}\n"
+                module_blk += f"// Version@Script : {GenerateParity.script_version}\n"
             module_blk += f"module {drv_name}_SIGNAL_PARITY_GEN ("
             module_blk += f"\n    input {clk}, {rst},"
             # NOTE: Fault injection disabled for driver signals - fierr ports removed
@@ -296,6 +304,10 @@ class GenerateParity(GenerateVerilog):
             clk = GenerateParity.rcv_clk_rst_blk[rcv_name].get('clk')
             rst = GenerateParity.rcv_clk_rst_blk[rcv_name].get('rst')
             module_blk += "`timescale 1ns / 1ps\n\n"
+            # Add MD5 and version header
+            if GenerateParity.md5_hash:
+                module_blk += f"// MD5@INFO : {GenerateParity.md5_hash}\n"
+                module_blk += f"// Version@Script : {GenerateParity.script_version}\n"
             module_blk += f"module {rcv_name}_SIGNAL_PARITY_GEN ("
             module_blk += f"\n    input {clk}, {rst},"
             module_blk += GenerateParity.rcv_port_blk[rcv_name]

@@ -1,4 +1,8 @@
 import argparse
+import hashlib
+import pandas as pd
+from openpyxl import load_workbook
+from openpyxl.utils import get_column_letter
 
 from DCLS_generator.common.prettycode import bcolors
 from DCLS_generator.common.find_duplicate_port import find_matching_port
@@ -34,6 +38,98 @@ warnings.simplefilter(action='ignore', category=FutureWarning)
 # Set AXICRYPT_HOME if not already set
 if 'AXICRYPT_HOME' not in os.environ:
     os.environ['AXICRYPT_HOME'] = os.path.join(os.getcwd(), 'axicrypt')
+
+def calculate_md5_from_info_dict(info_dict, exclude_cols=None):
+    """
+    Calculate MD5 hash from info_dict values.
+    Excludes columns specified in exclude_cols list.
+    MD5 depends only on cell values, not on their format.
+    """
+    if exclude_cols is None:
+        exclude_cols = ["MD5 & Script Version", "NOTE"]
+    
+    # Collect all values except excluded columns
+    values = []
+    for key, value in info_dict.items():
+        if key not in exclude_cols:
+            # Convert to string to ensure consistent hashing
+            values.append(str(value).strip())
+    
+    # Concatenate all values and calculate MD5
+    concatenated = "".join(values)
+    md5_hash = hashlib.md5(concatenated.encode()).hexdigest()
+    return md5_hash
+
+def update_info_file_with_md5(file_path, sheet_name, info_dict_list, selected_groups=None):
+    """
+    Update INFO Excel file with MD5 and Script Version.
+    Inserts 'MD5 & Script Version' column before 'NOTE' column.
+    Format: MD5: {hash} | Script: v{version}
+    """
+    try:
+        # Load Excel workbook
+        wb = load_workbook(file_path)
+        if sheet_name and sheet_name in wb.sheetnames:
+            ws = wb[sheet_name]
+        else:
+            ws = wb.active
+        
+        # Find header row (row 1)
+        headers = {}
+        for col_idx in range(1, ws.max_column + 1):
+            cell = ws.cell(row=1, column=col_idx)
+            if cell.value:
+                headers[str(cell.value).strip()] = col_idx
+        
+        # Find "NOTE" column
+        note_col_idx = headers.get("NOTE")
+        if not note_col_idx:
+            note_col_idx = ws.max_column + 1
+        
+        # Find "MD5 & Script Version" column
+        md5_col_idx = headers.get("MD5 & Script Version")
+        
+        if not md5_col_idx:
+            # Insert new column before NOTE
+            ws.insert_cols(note_col_idx)
+            md5_col_idx = note_col_idx
+            ws.cell(row=1, column=md5_col_idx).value = "MD5 & Script Version"
+        
+        # Exclude columns from MD5 calculation
+        exclude_cols = ["MD5 & Script Version", "NOTE"]
+        
+        # Update all data rows with MD5 values
+        script_version = "3.0.0"
+        row_count = 0
+        
+        for row_num in range(2, ws.max_row + 1):
+            # Check if row has data
+            has_data = False
+            for col_idx in range(1, ws.max_column + 1):
+                cell = ws.cell(row=row_num, column=col_idx)
+                if cell.value is not None:
+                    has_data = True
+                    break
+            
+            if not has_data:
+                break
+            
+            # Calculate MD5 from this row's info_dict
+            if row_count < len(info_dict_list):
+                info_dict = info_dict_list[row_count]
+                md5_hash = calculate_md5_from_info_dict(info_dict)
+                md5_value = f"MD5: {md5_hash} | Script: v{script_version}"
+                ws.cell(row=row_num, column=md5_col_idx).value = md5_value
+            
+            row_count += 1
+        
+        # Save workbook
+        wb.save(file_path)
+        print(f"✓ INFO file updated with MD5 and Script Version: {file_path}")
+        
+    except Exception as e:
+        print(f"Warning: Could not update INFO file with MD5: {e}")
+        print("MD5 comments will still be added to Verilog modules")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Parity generator v1 by Tho Mai (2024.06)')
@@ -252,17 +348,27 @@ if __name__ == "__main__":
         INFOExtractor = ExtractINFO(file_path, parity_scheme)
         info_dict_list = INFOExtractor._read_info_multi()
         info_dict_list = filter_by_group(info_dict_list, selected_groups)
+        
+        # Update INFO file with MD5 and Script Version
+        if info_dict_list:
+            update_info_file_with_md5(file_path, parity_scheme, info_dict_list, selected_groups)
+        
         if parity_scheme == "SAFETY.SIGNAL PARITY":
             ip_filelist_dict_drv = {}
             ip_filelist_dict_rcv = {}
             if info_dict_list:
                 for info_dict in info_dict_list:
+                    # Calculate MD5 from info_dict
+                    md5_hash = calculate_md5_from_info_dict(info_dict)
+                    
                     Parity_INFOExtractor = ExtractINFO_Parity_Signal(info_dict)
                     ip_filelist_dict_drv[
                         Parity_INFOExtractor._extract_drv_name()] = Parity_INFOExtractor._extract_filelist_list_drv()
                     ip_filelist_dict_rcv[
                         Parity_INFOExtractor._extract_rcv_name()] = Parity_INFOExtractor._extract_filelist_list_rcv()
                     Parity_generator = GenerateParity(Parity_INFOExtractor)
+                    # Set MD5 hash to class
+                    GenerateParity.md5_hash = md5_hash
                     Parity_generator._wrapper_drv()
                     Parity_generator._wrapper_rcv()
 
@@ -415,10 +521,15 @@ if __name__ == "__main__":
             ip_filelist_dict = {}
             if info_dict_list:
                 for info_dict in info_dict_list:
+                    # Calculate MD5 from info_dict
+                    md5_hash = calculate_md5_from_info_dict(info_dict)
+                    
                     Parity_INFOExtractor = ExtractINFO_Parity_Bus(info_dict)
                     ip_filelist_dict[
                         Parity_INFOExtractor._extract_ip_name()] = Parity_INFOExtractor._extract_filelist_list_ip()
                     Parity_generator = GenerateBus(Parity_INFOExtractor)
+                    # Set MD5 hash to class
+                    GenerateBus.md5_hash = md5_hash
                     Parity_generator._wrapper_ip()
 
                 # par_dir = f"./DCLS_generator/module_parity/IP_PARITY.v"
@@ -569,10 +680,15 @@ if __name__ == "__main__":
             ip_filelist_dict = {}
             if info_dict_list:
                 for info_dict in info_dict_list:
+                    # Calculate MD5 from info_dict
+                    md5_hash = calculate_md5_from_info_dict(info_dict)
+                    
                     Parity_INFOExtractor = ExtractINFO_Parity_Register(info_dict)
                     ip_filelist_dict[
                         Parity_INFOExtractor._extract_ip_name()] = Parity_INFOExtractor._extract_filelist_list_ip()
                     Parity_generator = GenerateRegister(Parity_INFOExtractor)
+                    # Set MD5 hash to class
+                    GenerateRegister.md5_hash = md5_hash
                     Parity_generator._wrapper_reg()
 
                 port_list = Parity_generator._list_port_ip()

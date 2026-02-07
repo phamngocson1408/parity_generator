@@ -1,5 +1,7 @@
 `timescale 1ns / 1ps
 
+// MD5@INFO : 305f3681692ea4f39d05961cd6714eeb
+// Version@Script : 3.0.0
 module SIMPLE_TOP_IP_PARITY_GEN (
     input ACLK, RESETN_ACLK,
     input  ENERR_WADDR_PARITY,

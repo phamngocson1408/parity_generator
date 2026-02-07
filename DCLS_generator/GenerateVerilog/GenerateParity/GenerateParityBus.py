@@ -10,6 +10,10 @@ class GenerateBus(GenerateVerilog):
     safety_scheme = 'Parity'
     ip_set = set()
     bus_set = set()
+    
+    # MD5 and version tracking
+    md5_hash = ""
+    script_version = "3.0.0"
 
     # IP
     ip_clk_rst_blk = {}
@@ -523,6 +527,10 @@ class GenerateBus(GenerateVerilog):
         drive_receive_mode = GenerateBus.ip_drive_receive_mode[ip_name]
 
         module_blk += "`timescale 1ns / 1ps\n\n"
+        # Add MD5 and version header
+        if GenerateBus.md5_hash:
+            module_blk += f"// MD5@INFO : {GenerateBus.md5_hash}\n"
+            module_blk += f"// Version@Script : {GenerateBus.script_version}\n"
         module_blk += f"module {ip_name}_IP_PARITY_GEN ("
         module_blk += f"\n    input {clk}, {rst},"
         # NOTE: Fault injection disabled for driver signals - fierr ports removed for DRIVE mode
