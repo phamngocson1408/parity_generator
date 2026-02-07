@@ -4,8 +4,7 @@ from Parity_generator.extract_data_classes import ExtractParam
 from Parity_generator.extract_data_classes import ExtractInport
 from Parity_generator.extract_data_classes import ExtractOutport
 
-from Parity_generator.ClassLocateIP.LocateModule import LocateModule
-from Parity_generator.ClassLocateIP.LocateInstance import LocateInstance
+from Parity_generator.locate_ip_classes import LocateModule, LocateInstance
 
 
 def coarse_grained_process_dc(dc_file_path: str, dc_module: str):

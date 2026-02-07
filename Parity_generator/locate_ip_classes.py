@@ -2,6 +2,9 @@ import re
 from Parity_generator.moduleParser.comment_process import CommentProcess
 
 
+# ============================================================================
+# Base Class: LocateIP
+# ============================================================================
 class LocateIP:
     ip_level = 'IP'
     ip_start_pattern: str
@@ -129,3 +132,61 @@ class LocateIP:
             s = s[:start] + s[end:]
     
         return s
+
+
+# ============================================================================
+# Extended Class: LocateModule (extends LocateIP)
+# ============================================================================
+class LocateModule(LocateIP):
+    ip_level = 'Module'
+
+    def __init__(self, content, ip_name):
+        super().__init__(content, ip_name)
+        self.ip_start_pattern = r'module\s+' + (r'\b' + re.escape(self.ip_name) + r'\b')
+        self.ip_end_pattern   = r'\bendmodule\b'
+        self.ip_declr_pattern = r';'
+
+    def _find_ip_declaration(self, ip_start_index: int):
+        comment_processor = CommentProcess(self.content)
+        multi_cmt_indices, single_cmt_indices = comment_processor.find_comments()
+        match_indices = []
+        closest_index = None
+
+        for match in re.finditer(self.ip_declr_pattern, self.content):
+            match_indices.append(match.end())
+
+        match_indices.sort()
+        for i in match_indices:
+            if i > ip_start_index:
+                if self._filter_ip_index([i], multi_cmt_indices, single_cmt_indices):
+                    closest_index = i
+                    break
+
+        if closest_index is None:
+            raise ValueError(f"Cannot find where the declaration of {self.ip_name} ends.")
+
+        return closest_index
+
+
+# ============================================================================
+# Extended Class: LocateInstance (extends LocateIP)
+# ============================================================================
+class LocateInstance(LocateIP):
+    ip_level = 'Instance'
+
+    def __init__(self, content, ip_name):
+        super().__init__(content, ip_name)
+        self.ip_start_pattern = r'\b' + self.ip_name + r'(?:\s*#|\s+\w+\b)'
+        self.ip_end_pattern   = r';'
+
+
+# ============================================================================
+# Extended Class: LocateInstanceU (extends LocateIP)
+# ============================================================================
+class LocateInstanceU(LocateIP):
+    ip_level = 'InstanceU'
+
+    def __init__(self, content, ip_name):
+        super().__init__(content, ip_name)
+        self.ip_start_pattern = r'\b\w+\b' + r'(?:\s*#\s*\([^;]*?\)\s*\b' + self.ip_name + r'\b\s*\(' + r'|\s+\b' + self.ip_name + r'\b\s*\()'
+        self.ip_end_pattern   = r';'

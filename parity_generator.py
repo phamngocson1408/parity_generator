@@ -7,8 +7,7 @@ from openpyxl.utils import get_column_letter
 from Parity_generator.common.prettycode import bcolors
 from Parity_generator.common.find_duplicate_port import find_matching_port
 from Parity_generator.extract_data_classes import ExtractPort
-from Parity_generator.ClassLocateIP.LocateModule import LocateModule
-from Parity_generator.ClassLocateIP.LocateInstance import LocateInstance
+from Parity_generator.locate_ip_classes import LocateModule, LocateInstance
 from Parity_generator.GenerateVerilog.GenerateParity.GenerateParity import GenerateParity
 from Parity_generator.GenerateVerilog.GenerateParity.GenerateParityBus import GenerateBus
 from Parity_generator.GenerateVerilog.GenerateParity.GenerateParityRegister import GenerateRegister

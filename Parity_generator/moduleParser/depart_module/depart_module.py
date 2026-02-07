@@ -1,8 +1,7 @@
 import re
 from Parity_generator.common.find_bracket import find_balance_bracket
 from Parity_generator.moduleParser.comment_process import *
-from Parity_generator.ClassLocateIP.LocateModule import LocateModule
-from Parity_generator.ClassLocateIP.LocateIntanceU import LocateInstanceU
+from Parity_generator.locate_ip_classes import LocateModule, LocateInstanceU
 
 
 def module_declaration_partition(module_declaration_content, param_usage=True):
