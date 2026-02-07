@@ -4,31 +4,31 @@ import pandas as pd
 from openpyxl import load_workbook
 from openpyxl.utils import get_column_letter
 
-from DCLS_generator.common.prettycode import bcolors
-from DCLS_generator.common.find_duplicate_port import find_matching_port
-from DCLS_generator.ClassExtractData.ExtractPort import ExtractPort
-from DCLS_generator.ClassLocateIP.LocateModule import LocateModule
-from DCLS_generator.ClassLocateIP.LocateInstance import LocateInstance
-from DCLS_generator.GenerateVerilog.GenerateParity.GenerateParity import GenerateParity
-from DCLS_generator.GenerateVerilog.GenerateParity.GenerateParityBus import GenerateBus
-from DCLS_generator.GenerateVerilog.GenerateParity.GenerateParityRegister import GenerateRegister
-from DCLS_generator.GenerateVerilog.GenerateVerilog import GenerateVerilog
-from DCLS_generator.RemoveVerilog.RemoveParity import RemoveParity
-from DCLS_generator.ClassExtractINFO.ExtractINFO import ExtractINFO
-from DCLS_generator.ClassExtractINFO.ExtractINFO_Parity.ExtractINFO_Parity_Signal import ExtractINFO_Parity_Signal
-from DCLS_generator.ClassExtractINFO.ExtractINFO_Parity.ExtractINFO_Parity_Bus import ExtractINFO_Parity_Bus
-from DCLS_generator.ClassExtractINFO.ExtractINFO_Parity.ExtractINFO_Parity_Register import ExtractINFO_Parity_Register
+from Parity_generator.common.prettycode import bcolors
+from Parity_generator.common.find_duplicate_port import find_matching_port
+from Parity_generator.ClassExtractData.ExtractPort import ExtractPort
+from Parity_generator.ClassLocateIP.LocateModule import LocateModule
+from Parity_generator.ClassLocateIP.LocateInstance import LocateInstance
+from Parity_generator.GenerateVerilog.GenerateParity.GenerateParity import GenerateParity
+from Parity_generator.GenerateVerilog.GenerateParity.GenerateParityBus import GenerateBus
+from Parity_generator.GenerateVerilog.GenerateParity.GenerateParityRegister import GenerateRegister
+from Parity_generator.GenerateVerilog.GenerateVerilog import GenerateVerilog
+from Parity_generator.RemoveVerilog.RemoveParity import RemoveParity
+from Parity_generator.ClassExtractINFO.ExtractINFO import ExtractINFO
+from Parity_generator.ClassExtractINFO.ExtractINFO_Parity.ExtractINFO_Parity_Signal import ExtractINFO_Parity_Signal
+from Parity_generator.ClassExtractINFO.ExtractINFO_Parity.ExtractINFO_Parity_Bus import ExtractINFO_Parity_Bus
+from Parity_generator.ClassExtractINFO.ExtractINFO_Parity.ExtractINFO_Parity_Register import ExtractINFO_Parity_Register
 from collections import defaultdict
 
-from DCLS_generator.instanceModifier.modify_instance import remove_dcls_port
-from DCLS_generator.moduleParser.comment_process import CommentProcess
+from Parity_generator.instanceModifier.modify_instance import remove_dcls_port
+from Parity_generator.moduleParser.comment_process import CommentProcess
 
-from DCLS_generator.moduleCreator.declare_port import declare_parity_port_2001, declare_parity_port_1995
-from DCLS_generator.moduleParser.depart_module.depart_module import module_partition, module_declaration_partition
+from Parity_generator.moduleCreator.declare_port import declare_parity_port_2001, declare_parity_port_1995
+from Parity_generator.moduleParser.depart_module.depart_module import module_partition, module_declaration_partition
 
-from DCLS_generator.moduleParser.recursive_read import *
-from DCLS_generator.common.find_bracket import remove_after_pattern
-from DCLS_generator.function_wrapper.dcls_wrappers import filter_ip_index
+from Parity_generator.moduleParser.recursive_read import *
+from Parity_generator.common.find_bracket import remove_after_pattern
+from Parity_generator.function_wrapper.dcls_wrappers import filter_ip_index
 
 import warnings
 import os
@@ -140,7 +140,7 @@ if __name__ == "__main__":
     parser.add_argument("-gen-top", type=str, default='YES', help="Generate top wrapper module (YES/NO)")
     args = parser.parse_args()
 
-    # file_path = "./DCLS_generator/[INFO]_PARITY_TEMPLATE.xlsx"
+    # file_path = "./Parity_generator/[INFO]_PARITY_TEMPLATE.xlsx"
     file_path = args.info
     if args.type:
         parity_scheme_list = [args.type]
@@ -372,11 +372,11 @@ if __name__ == "__main__":
                     Parity_generator._wrapper_drv()
                     Parity_generator._wrapper_rcv()
 
-                dc_dir = f"./DCLS_generator/module_parity/SIGNAL_DRIVER_PARITY.v"
+                dc_dir = f"./Parity_generator/module_parity/SIGNAL_DRIVER_PARITY.v"
                 dcls_file = open(dc_dir, 'w')
                 dcls_file.write(Parity_generator._generate_module_drv())
 
-                dc_dir = f"./DCLS_generator/module_parity/SIGNAL_RECEIVER_PARITY.v"
+                dc_dir = f"./Parity_generator/module_parity/SIGNAL_RECEIVER_PARITY.v"
                 dcls_file = open(dc_dir, 'w')
                 dcls_file.write(Parity_generator._generate_module_rcv())
 
@@ -444,7 +444,7 @@ if __name__ == "__main__":
                     else:
                         module_whole_content = module_whole_content + "\n" + instance_content + "endmodule"
                     top_file_contents = module_declaration_content + module_whole_content
-                    par_dir = f"./DCLS_generator/module_parity/SIGNAL_PARITY_DRV_{top_name}_TOP.v"
+                    par_dir = f"./Parity_generator/module_parity/SIGNAL_PARITY_DRV_{top_name}_TOP.v"
                     par_file = open(par_dir, 'w')
                     par_file.write(before_top_file_contents + top_file_contents + after_top_file_contents)
 
@@ -513,7 +513,7 @@ if __name__ == "__main__":
                     else:
                         module_whole_content = module_whole_content + "\n" + instance_content + "endmodule"
                     top_file_contents = module_declaration_content + module_whole_content
-                    par_dir = f"./DCLS_generator/module_parity/SIGNAL_PARITY_RCV_{top_name}_TOP.v"
+                    par_dir = f"./Parity_generator/module_parity/SIGNAL_PARITY_RCV_{top_name}_TOP.v"
                     par_file = open(par_dir, 'w')
                     par_file.write(before_top_file_contents + top_file_contents + after_top_file_contents)
 
@@ -532,7 +532,7 @@ if __name__ == "__main__":
                     GenerateBus.md5_hash = md5_hash
                     Parity_generator._wrapper_ip()
 
-                # par_dir = f"./DCLS_generator/module_parity/IP_PARITY.v"
+                # par_dir = f"./Parity_generator/module_parity/IP_PARITY.v"
                 # par_file = open(par_dir, 'w')
                 # par_file.write(Parity_generator._generate_module_ip())
 
@@ -653,7 +653,7 @@ if __name__ == "__main__":
                         module_whole_content = module_whole_content
                     top_file_contents = module_declaration_content + module_whole_content
 
-                    # par_dir = f"./DCLS_generator/module_parity/BUS_PARITY_{top_name}_TOP.v"
+                    # par_dir = f"./Parity_generator/module_parity/BUS_PARITY_{top_name}_TOP.v"
                     # par_file = open(par_dir, 'w')
                     # par_file.write(before_top_file_contents + top_file_contents + after_top_file_contents)
 
@@ -753,10 +753,10 @@ if __name__ == "__main__":
                     module_whole_content = module_whole_content[
                                            :-9] + instance_content + parity_content + "\n\nendmodule"
                     top_file_contents = module_declaration_content + module_whole_content
-                    par_dir = f"./DCLS_generator/module_parity/REGISTER_PARITY_{top_name}_TOP.v"
+                    par_dir = f"./Parity_generator/module_parity/REGISTER_PARITY_{top_name}_TOP.v"
                     par_file = open(par_dir, 'w')
                     par_file.write(before_top_file_contents + top_file_contents + after_top_file_contents)
-                par_dir = f"./DCLS_generator/module_parity/REGISTER_PARITY.v"
+                par_dir = f"./Parity_generator/module_parity/REGISTER_PARITY.v"
                 par_file = open(par_dir, 'w')
                 par_file.write(Parity_generator._generate_module_reg())
 
