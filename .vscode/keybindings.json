@@ -1,0 +1,13 @@
+[
+    {
+        "key": "f5",
+        "command": "workbench.action.tasks.runTask",
+        "args": "Generate Parity: BOS_AXICRYPT (SAFETY.PARITY)",
+        "when": "!terminalFocus"
+    },
+    {
+        "key": "ctrl+f5",
+        "command": "workbench.action.debug.run",
+        "when": "!terminalFocus"
+    }
+]

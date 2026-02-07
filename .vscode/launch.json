@@ -2,22 +2,47 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Python: Parity Generator",
-            "type": "debugpy",
+            "name": "Generate Parity: BOS_AXICRYPT (SAFETY.PARITY)",
+            "type": "python",
             "request": "launch",
             "program": "${workspaceFolder}/parity_generator.py",
-            "python": "${workspaceFolder}/.venv39/bin/python",
+            "pythonPath": "${workspaceFolder}/.venv312/bin/python3",
             "console": "integratedTerminal",
             "args": [
                 "-info",
-                "./[INFO]_BOS_AXICRYPT.safety.xlsx",
+                "[INFO]_BOS_AXICRYPT.safety.xlsx",
+                "-type",
+                "SAFETY.PARITY",
                 "-group",
-                "A"
+                "ALL"
             ],
             "cwd": "${workspaceFolder}",
             "env": {
                 "AXICRYPT_HOME": "${workspaceFolder}/axicrypt"
-            }
+            },
+            "justMyCode": true,
+            "stopOnEntry": false
+        },
+        {
+            "name": "Generate Parity: SIMPLE_TOP (SAFETY.PARITY)",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/parity_generator.py",
+            "pythonPath": "${workspaceFolder}/.venv312/bin/python3",
+            "console": "integratedTerminal",
+            "args": [
+                "-info",
+                "simple_test/[INFO]_SIMPLE_TOP.safety.xlsx",
+                "-type",
+                "SAFETY.PARITY",
+                "-group",
+                "ALL"
+            ],
+            "cwd": "${workspaceFolder}",
+            "env": {
+                "AXICRYPT_HOME": "${workspaceFolder}/axicrypt"
+            },
+            "justMyCode": true
         }
     ]
 }

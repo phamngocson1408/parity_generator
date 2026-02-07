@@ -14,6 +14,85 @@
             "presentation": {
                 "reveal": "never"
             }
+        },
+        {
+            "label": "Generate Parity: BOS_AXICRYPT (SAFETY.PARITY)",
+            "type": "shell",
+            "command": "${workspaceFolder}/.venv312/bin/python3",
+            "args": [
+                "${workspaceFolder}/parity_generator.py",
+                "-info",
+                "${workspaceFolder}/[INFO]_BOS_AXICRYPT.safety.xlsx",
+                "-type",
+                "SAFETY.PARITY"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "presentation": {
+                "reveal": "always",
+                "panel": "shared",
+                "focus": false
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "Generate Parity: SIMPLE_TOP (SAFETY.PARITY)",
+            "type": "shell",
+            "command": "${workspaceFolder}/.venv312/bin/python3",
+            "args": [
+                "${workspaceFolder}/parity_generator.py",
+                "-info",
+                "${workspaceFolder}/simple_test/[INFO]_SIMPLE_TOP.safety.xlsx",
+                "-type",
+                "SAFETY.PARITY"
+            ],
+            "group": "build",
+            "presentation": {
+                "reveal": "always",
+                "panel": "shared",
+                "focus": false
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "Generate Parity: BOS_AXICRYPT (SIGNAL PARITY)",
+            "type": "shell",
+            "command": "${workspaceFolder}/.venv312/bin/python3",
+            "args": [
+                "${workspaceFolder}/parity_generator.py",
+                "-info",
+                "${workspaceFolder}/[INFO]_BOS_AXICRYPT.safety.xlsx",
+                "-type",
+                "SAFETY.SIGNAL PARITY"
+            ],
+            "group": "build",
+            "presentation": {
+                "reveal": "always",
+                "panel": "shared",
+                "focus": false
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "Generate Parity: BOS_AXICRYPT (REGISTER PARITY)",
+            "type": "shell",
+            "command": "${workspaceFolder}/.venv312/bin/python3",
+            "args": [
+                "${workspaceFolder}/parity_generator.py",
+                "-info",
+                "${workspaceFolder}/[INFO]_BOS_AXICRYPT.safety.xlsx",
+                "-type",
+                "SAFETY.REGISTER PARITY"
+            ],
+            "group": "build",
+            "presentation": {
+                "reveal": "always",
+                "panel": "shared",
+                "focus": false
+            },
+            "problemMatcher": []
         }
     ]
 }
