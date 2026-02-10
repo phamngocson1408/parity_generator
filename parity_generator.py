@@ -395,8 +395,10 @@ if __name__ == "__main__":
                     with open(top_file_dir, 'r') as file:
                         top_file_contents_ori = file.read()
 
-                    # Clean parity ports/instances from original file first
-                    top_file_contents_ori = clean_parity_from_module(top_file_contents_ori, top_name)
+                    # For gen_top = NO: clean parity ports/instances from original file
+                    # For gen_top = YES: keep original file untouched
+                    if not gen_top:
+                        top_file_contents_ori = clean_parity_from_module(top_file_contents_ori, top_name)
 
                     ModuleLocator = LocateModule(top_file_contents_ori, top_name)
                     before_top_file_contents, top_file_contents, after_top_file_contents = ModuleLocator._separate_ip()
