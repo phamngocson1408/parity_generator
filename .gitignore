@@ -9,3 +9,4 @@ DCLS_generator/module_*/*
 axicrypt/
 .venv39/
 .venv/
+.venv312/

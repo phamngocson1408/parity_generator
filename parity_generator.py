@@ -48,8 +48,7 @@ def calculate_md5_from_info_dict(info_dict, exclude_cols=None):
 
 def update_info_file_with_md5(file_path, sheet_name, info_dict_list, selected_groups=None):
     """
-    Update INFO Excel file with MD5 and Script Version.
-    Inserts 'MD5 & Script Version' column before 'NOTE' column.
+    Update INFO Excel file with MD5 and Script Version in NOTE column.
     Format: MD5: {hash} | Script: v{version}
     """
     try:
@@ -60,15 +59,19 @@ def update_info_file_with_md5(file_path, sheet_name, info_dict_list, selected_gr
         else:
             ws = wb.active
         
-        # Find header row (row 1)
+        # Find header row (row 2, since row 1 might be empty)
         headers = {}
         for col_idx in range(1, ws.max_column + 1):
-            cell = ws.cell(row=1, column=col_idx)
+            cell = ws.cell(row=2, column=col_idx)
             if cell.value:
                 headers[str(cell.value).strip()] = col_idx
         
         # Find "NOTE" column
-        note_col_idx = headers.get("NOTE")
+        note_col_idx = None
+        for key, idx in headers.items():
+            if key.startswith("NOTE"):
+                note_col_idx = idx
+                break
         if not note_col_idx:
             note_col_idx = ws.max_column + 1
         
@@ -79,16 +82,27 @@ def update_info_file_with_md5(file_path, sheet_name, info_dict_list, selected_gr
             # Insert new column before NOTE
             ws.insert_cols(note_col_idx)
             md5_col_idx = note_col_idx
-            ws.cell(row=1, column=md5_col_idx).value = "MD5 & Script Version"
+            # Do not set title
         
         # Exclude columns from MD5 calculation
         exclude_cols = ["MD5 & Script Version", "NOTE"]
         
+        # Exclude columns from MD5 calculation
+        exclude_cols = ["MD5 & Script Version", "NOTE"]
+        
+        # Group info_dict_list by GROUP and calculate MD5 per group
+        from collections import defaultdict
+        group_md5 = {}
+        for info_dict in info_dict_list:
+            group = info_dict.get("GROUP", "").strip()
+            if group not in group_md5:
+                # Calculate MD5 for the group (same for all rows in group)
+                group_md5[group] = calculate_md5_from_info_dict(info_dict)
+        
         # Update all data rows with MD5 values
         script_version = "3.0.0"
-        row_count = 0
         
-        for row_num in range(2, ws.max_row + 1):
+        for row_num in range(3, ws.max_row + 1):
             # Check if row has data
             has_data = False
             for col_idx in range(1, ws.max_column + 1):
@@ -100,18 +114,20 @@ def update_info_file_with_md5(file_path, sheet_name, info_dict_list, selected_gr
             if not has_data:
                 break
             
-            # Calculate MD5 from this row's info_dict
-            if row_count < len(info_dict_list):
-                info_dict = info_dict_list[row_count]
-                md5_hash = calculate_md5_from_info_dict(info_dict)
-                md5_value = f"MD5: {md5_hash} | Script: v{script_version}"
-                ws.cell(row=row_num, column=md5_col_idx).value = md5_value
-            
-            row_count += 1
+            # Get GROUP from this row
+            group_col_idx = headers.get("GROUP")
+            if group_col_idx:
+                group_cell = ws.cell(row=row_num, column=group_col_idx)
+                group = str(group_cell.value).strip() if group_cell.value else ""
+                
+                if group in group_md5:
+                    md5_hash = group_md5[group]
+                    md5_value = f"MD5: {md5_hash} | Script: v{script_version}"
+                    ws.cell(row=row_num, column=md5_col_idx).value = md5_value
         
         # Save workbook
         wb.save(file_path)
-        print(f"✓ INFO file updated with MD5 and Script Version: {file_path}")
+        print(f"✓ INFO file updated with MD5 and Script Version in MD5 column: {file_path}")
         
     except Exception as e:
         print(f"Warning: Could not update INFO file with MD5: {e}")

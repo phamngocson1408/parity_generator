@@ -16,9 +16,26 @@ class ExtractINFO:
         info_df.dropna(how='all', axis=0, inplace=True)  # Remove empty rows
         # info_df.dropna(how='all', axis=1, inplace=True)  # Remove empty columns - commented out to keep all columns from header
 
+        # Find the actual header row by looking for the first row with 'No' in the first column
+        header_row_idx = None
+        for idx, row in info_df.iterrows():
+            if pd.notna(row.iloc[0]) and str(row.iloc[0]).strip() == 'No':
+                header_row_idx = idx
+                break
+        
+        if header_row_idx is None:
+            # Fallback: use the first non-empty row
+            for idx, row in info_df.iterrows():
+                if not row.isna().all():
+                    header_row_idx = idx
+                    break
+        
+        if header_row_idx is not None:
+            info_df = info_df.loc[header_row_idx:].reset_index(drop=True)
+        
         info_df.columns = info_df.iloc[0]  # Set the first row as header
         info_df.columns = info_df.columns.fillna('')  # Fill NaN in header with empty string
-        info_df = info_df[1:]
+        info_df = info_df.iloc[1:]
         info_df = info_df.fillna('')
         info_df = info_df.astype(str)
 
@@ -34,9 +51,26 @@ class ExtractINFO:
         info_df.dropna(how='all', axis=0, inplace=True)  # Remove empty rows
         # info_df.dropna(how='all', axis=1, inplace=True)  # Remove empty columns - commented out to keep all columns from header
 
+        # Find the actual header row by looking for the first row with 'No' in the first column
+        header_row_idx = None
+        for idx, row in info_df.iterrows():
+            if pd.notna(row.iloc[0]) and str(row.iloc[0]).strip() == 'No':
+                header_row_idx = idx
+                break
+        
+        if header_row_idx is None:
+            # Fallback: use the first non-empty row
+            for idx, row in info_df.iterrows():
+                if not row.isna().all():
+                    header_row_idx = idx
+                    break
+        
+        if header_row_idx is not None:
+            info_df = info_df.loc[header_row_idx:].reset_index(drop=True)
+        
         info_df.columns = info_df.iloc[0]  # Set the first row as header
         info_df.columns = info_df.columns.fillna('')  # Fill NaN in header with empty string
-        info_df = info_df[1:]
+        info_df = info_df.iloc[1:]
         info_df = info_df.fillna('')
         info_df = info_df.astype(str)
 
@@ -273,4 +307,3 @@ class ExtractINFO_Parity_Bus(ExtractINFO_Parity):
         """Extract SIGNAL VALID NAME from INFO file. Returns empty string if not specified."""
         signal_valid_name = self.info_dict.get("SIGNAL VALID NAME", "").strip()
         return signal_valid_name
-
