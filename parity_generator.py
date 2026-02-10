@@ -213,6 +213,16 @@ if __name__ == "__main__":
                 # FIERR ports for data signals should NOT be included - only FIERR/ENERR for parity control
                 skip_fierr_data = {'FIERR_WADDR_DATA', 'FIERR_WDATA_DATA', 'FIERR_RADDR_DATA', 'FIERR_RDATA_DATA'}
                 
+                # Extract already declared input port names from top module
+                existing_inputs = set()
+                for line in top_port_declaration.split('\n'):
+                    line_stripped = line.strip()
+                    if line_stripped.startswith('input'):
+                        # Extract port name from: "input [width] port_name" or similar
+                        port_match = re.search(r'input\s+(\[.*?\]\s+)?(\w+)', line_stripped)
+                        if port_match:
+                            existing_inputs.add(port_match.group(2))
+                
                 # Parse each line to find input ports
                 for line in port_declaration.split('\n'):
                     line = line.strip()
@@ -230,11 +240,11 @@ if __name__ == "__main__":
                                     bit_width = raw_width[1:-1] if raw_width.startswith('[') and raw_width.endswith(']') else raw_width
                                     port_name = match.group(2)
                                     
-                                    # Skip if already in top module declaration, in skip list, or data-related FIERR
+                                    # Skip if already in skip list, top module declaration, or already seen
                                     if (port_name not in seen_ports and 
                                         port_name not in skip_ports and 
                                         port_name not in skip_fierr_data and
-                                        port_name not in top_port_declaration):
+                                        port_name not in existing_inputs):
                                         seen_ports.add(port_name)
                                         extra_inport.append([bit_width, port_name, ""])
                 
@@ -257,6 +267,16 @@ if __name__ == "__main__":
                 extra_outport = []
                 seen_ports = set()
                 
+                # Extract already declared output port names from top module (not just presence in string)
+                existing_outputs = set()
+                for line in top_port_declaration.split('\n'):
+                    line_stripped = line.strip()
+                    if line_stripped.startswith('output'):
+                        # Extract port name from: "output [width] port_name" or "output [width] port_name,"
+                        port_match = re.search(r'output\s+(\[.*?\]\s+)?(\w+)', line_stripped)
+                        if port_match:
+                            existing_outputs.add(port_match.group(2))
+                
                 # Parse each line to find output ports
                 for line in port_declaration.split('\n'):
                     line = line.strip()
@@ -274,8 +294,8 @@ if __name__ == "__main__":
                                     bit_width = raw_width[1:-1] if raw_width.startswith('[') and raw_width.endswith(']') else raw_width
                                     port_name = match.group(2)
                                     
-                                    # Skip if already in top module declaration
-                                    if port_name not in seen_ports and port_name not in top_port_declaration:
+                                    # Skip if already declared in top module or already seen
+                                    if port_name not in seen_ports and port_name not in existing_outputs:
                                         seen_ports.add(port_name)
                                         extra_outport.append([bit_width, port_name, ""])
                 
