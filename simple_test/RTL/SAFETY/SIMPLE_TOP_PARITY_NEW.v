@@ -54,9 +54,9 @@ assign RDATA_PARITY[0] = RDATA_VALID ? (^RDATA_DATA[63:0]) : 1'b0;
 
 wire w_AnyError_SIMPLE_TOP;
 // Gate RECEIVE parity ports with corresponding signal_valid signals
-wire w_WADDR_PARITY_gated = WADDR_VALID ? WADDR_PARITY : 1'b0;
-wire w_WDATA_PARITY_gated = WDATA_VALID ? WDATA_PARITY : 1'b0;
-wire w_RADDR_PARITY_gated = RADDR_VALID ? RADDR_PARITY : 1'b0;
+wire [1-1:0] w_WADDR_PARITY_gated = WADDR_VALID ? WADDR_PARITY : 1'b0;
+wire [1-1:0] w_WDATA_PARITY_gated = WDATA_VALID ? WDATA_PARITY : 1'b0;
+wire [1-1:0] w_RADDR_PARITY_gated = RADDR_VALID ? RADDR_PARITY : 1'b0;
 
 DCLS_COMPARATOR_TEMPLATE #(
     .DATA_WIDTH(3),

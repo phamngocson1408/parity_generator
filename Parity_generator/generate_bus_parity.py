@@ -482,7 +482,8 @@ class GenerateBus(GenerateVerilog):
                         gated_name = f"w_{par_port}_gated"
                         signal_valid = signal_valid_names[idx] if idx < len(signal_valid_names) else ""
                         if signal_valid:
-                            err_blk += f"wire {gated_name} = {signal_valid} ? {par_port} : 1'b0;\n"
+                            par_width = receive_par_widths[idx] if idx < len(receive_par_widths) else 1
+                            err_blk += f"wire [{par_width}-1:0] {gated_name} = {signal_valid} ? {par_port} : {par_width}'b0;\n"
                         else:
                             # If no signal_valid specified for this signal, don't gate it
                             gated_name = par_port
