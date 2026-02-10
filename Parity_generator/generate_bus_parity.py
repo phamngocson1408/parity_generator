@@ -4,6 +4,7 @@ from Parity_generator.stats_classes import StatsClass
 from Parity_generator.extract_info_classes import ExtractINFO_Parity_Bus
 from Parity_generator.common_utilities import bcolors
 import warnings
+import math
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
 
@@ -209,9 +210,9 @@ class GenerateBus(GenerateVerilog):
         port_blk = ""
         port_blk += f"\n    input  [{self.bit_width}-1:0] {self.ip_port},"
         if self.drive_receive == "RECEIVE":
-            port_blk += f"\n    input  [{self.bit_width // self.par_width}-1:0] {self.ip_par_port},"
+            port_blk += f"\n    input  [{int(math.ceil(self.bit_width / self.par_width))-1}:0] {self.ip_par_port},"
         else:
-            port_blk += f"\n    output [{self.bit_width // self.par_width}-1:0] {self.ip_par_port},"
+            port_blk += f"\n    output [{int(math.ceil(self.bit_width / self.par_width))-1}:0] {self.ip_par_port},"
         if self.signal_valid_name:
             port_blk += f"\n    input  {self.signal_valid_name},"
         return port_blk
@@ -399,7 +400,8 @@ class GenerateBus(GenerateVerilog):
 
             # Use DCLS_COMPARATOR_TEMPLATE instead of reduction XOR
             # Calculate parity width
-            par_width_bits = self.bit_width // self.par_width
+            import math
+            par_width_bits = math.ceil(self.bit_width / self.par_width)
             
             # Use FI{error_port} as the fault injection control port name
             fi_port_name = f"FI{self.ip_err_port}" if self.ip_err_port else ""
@@ -575,7 +577,8 @@ class GenerateBus(GenerateVerilog):
                 GenerateBus.ip_receive_ports[self.ip_name].append(self.ip_port)
                 GenerateBus.ip_receive_par_ports[self.ip_name].append(self.ip_par_port)
                 # Calculate parity width for this signal: bit_width / par_width
-                par_width_bits = self.bit_width // self.par_width
+                import math
+                par_width_bits = math.ceil(self.bit_width / self.par_width)
                 if self.ip_name not in GenerateBus.ip_receive_par_widths:
                     GenerateBus.ip_receive_par_widths[self.ip_name] = []
                 GenerateBus.ip_receive_par_widths[self.ip_name].append(par_width_bits)
@@ -871,7 +874,7 @@ class GenerateBus(GenerateVerilog):
             if [f"[{self.bit_width}-1:0]", self.ip_port, ""] not in GenerateBus.original_inport[self.ip_name]:
                 GenerateBus.original_inport[self.ip_name].append([f"[{self.bit_width}-1:0]", self.ip_port, ""])
             GenerateBus.original_outport[self.ip_name].append([f"[{self.bit_width}-1:0]", self.ip_port, ""])
-            GenerateBus.extra_outport[self.ip_name].append([f"[{self.bit_width // self.par_width}-1:0]", self.ip_par_port, ""])
+            GenerateBus.extra_outport[self.ip_name].append([f"[{int(math.ceil(self.bit_width / self.par_width))-1}:0]", self.ip_par_port, ""])
 
         if self.ip_name in GenerateBus.ip_set:
             if self.ip_err_port:
@@ -894,8 +897,9 @@ def split_dimension(size: int, part_size: int) -> list:
 
     # Calculate ["BIT WIDTH"] and ["PARITY SOURCE BIT WIDTH"]
     range_size = msb - lsb + 1
-    assert range_size % part_size == 0, "'BIT WIDTH' should be in multiples of 'PARITY BIT WIDTH'."
-    n = range_size // part_size
+    # No longer require multiples
+    import math
+    n = math.ceil(range_size / part_size)
 
     result = []
     for i in range(n):
@@ -903,7 +907,7 @@ def split_dimension(size: int, part_size: int) -> list:
         if i == n - 1:
             end = msb
         else:
-            end = start + part_size - 1
+            end = min(start + part_size - 1, msb)
         result.append(f"[{end}:{start}]")
 
     return result

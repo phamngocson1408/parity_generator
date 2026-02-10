@@ -403,55 +403,54 @@ if __name__ == "__main__":
 
                     # Add error ports to top module
                     top_file_contents_before_safety = top_file_contents
-                    _, module_whole_content = module_partition(top_file_contents, top_name)
-                    # InstanceLocator  = LocateInstance(top_file_contents_before_safety, args.inst)
-                    InstanceLocator = LocateInstance(module_whole_content, args.inst)
+                    
+                    # For gen_top = YES: use original module content without removal
+                    # For gen_top = NO: remove old parity assignments
+                    _, module_whole_content_orig = module_partition(top_file_contents_before_safety, top_name)
+                    
+                    InstanceLocator = LocateInstance(module_whole_content_orig, args.inst)
                     try:
-                        # before_instance_content, instance_content, after_instance_content = InstanceLocator._separate_ip()
-                        # # top_file_contents_before_safety = before_instance_content + "\n" + after_instance_content
-                        # module_whole_content = before_instance_content + "\n" + after_instance_content
-                        module_whole_content = InstanceLocator._remove_ips()
+                        module_whole_content_cleaned = InstanceLocator._remove_ips()
                         is_safe = True
                     except:
                         is_safe = False
-
+                    
                     is_safe = False # For now, not using removal for parity
 
-                    top_module_declaration_content, top_module_whole_content = module_partition(top_file_contents_before_safety, top_name)
-                    ParityRemoval = RemoveParity(top_module_declaration_content)
-                    if is_safe:
-                        top_module_declaration_content = ParityRemoval._remove_port()
-                    module_whole_content = ParityRemoval._remove_assignment(module_whole_content, extra_outport_name)
-                    cleaned_top_module_declaration_content = CommentProcess(
-                        top_module_declaration_content).remove_comments().strip()
+                    # For gen_top = YES: Create NEW file by:
+                    # 1. Keep full original module declaration + ports
+                    # 2. Add parity ports before ");","  
+                    # 3. Add parity instance before endmodule
+                    # 4. Keep all other logic
 
-                    top_param_declaration, top_port_declaration = module_declaration_partition(
-                        top_module_declaration_content,
-                        param_usage=False)
-
-                    PortExtractor = ExtractPort(top_port_declaration, top_module_whole_content)
-                    port_declaration_1995, ANSI_C_port = PortExtractor._extract_declaration_valid()
-                    module_declaration_content = f"module {top_name} "
-                    if top_param_declaration:
-                        module_declaration_content += "#(\n" + top_param_declaration + "\n)"
-                    
-                    # Extract input and output ports from parity module to add to top module declaration
-                    # Only add ports that are not already declared in top module
-                    parity_extra_inports = extract_parity_input_ports(ip, Parity_generator, top_port_declaration)
-                    parity_extra_outports = extract_parity_output_ports(ip, Parity_generator, top_port_declaration)
-                    
-                    # Add parity input/output ports to module declaration
-                    module_declaration_content += "(\n" + declare_parity_port_2001(
-                        port_declaration_2001=top_port_declaration,
-                        ANSI_C=ANSI_C_port,
-                        extra_inport=parity_extra_inports,
-                        extra_outport=parity_extra_outports) + "\n);\n"
-                    # NOTE: declare_parity_port_1995 is deprecated - ANSI-C style (2001) is sufficient
-
-                    # Add instance - only if not already exists
-                    instance_name = f"u_{top_name.lower()}_ip_parity_gen"
-                    if instance_name not in module_whole_content:
-                        # Parse parity module to get ALL ports
+                    if gen_top:
+                        # Get full module content from original file
+                        import re as regex
+                        
+                        # Extract parity ports to add
+                        parity_extra_inports = extract_parity_input_ports(ip, Parity_generator, top_file_contents)
+                        parity_extra_outports = extract_parity_output_ports(ip, Parity_generator, top_file_contents)
+                        
+                        # Build parity port strings
+                        parity_ports_str = ""
+                        for parity_port in parity_extra_inports:
+                            port_width = ("[" + parity_port[0] + "-1:0] ") if parity_port[0] else ""
+                            parity_ports_str += ",\n    input " + port_width + parity_port[1]
+                        for parity_port in parity_extra_outports:
+                            port_width = ("[" + parity_port[0] + "-1:0] ") if parity_port[0] else ""
+                            parity_ports_str += ",\n    output " + port_width + parity_port[1]
+                        
+                        # Find position to insert parity ports - right before );  at end of port list
+                        # Search for );" with possible whitespace, which closes port list
+                        port_list_match = regex.search(r'(\))\s*(;)', top_file_contents)
+                        if port_list_match:
+                            insert_pos = port_list_match.start(1)  # Position of ")"
+                            module_with_parity_ports = top_file_contents[:insert_pos] + parity_ports_str + top_file_contents[insert_pos:]
+                        else:
+                            # Fallback: just use original
+                            module_with_parity_ports = top_file_contents
+                        
+                        # Now add parity instance before "endmodule"
                         parity_module_ports = extract_parity_module_ports(ip, Parity_generator)
                         if parity_module_ports:
                             instance_content = f"\n{top_name}_IP_PARITY_GEN u_{top_name.lower()}_ip_parity_gen ("
@@ -466,35 +465,35 @@ if __name__ == "__main__":
                                     top_port_name = parity_port_name
                                 port_connections.append(f".{parity_port_name} ({top_port_name})")
                             
-                            instance_content += "\n    " + ",\n    ".join(port_connections) + "\n);\n"
-                            module_whole_content = module_whole_content.rstrip()
-                            if module_whole_content.endswith('endmodule'):
-                                module_whole_content = module_whole_content[:-9].rstrip() + "\n" + instance_content + "endmodule"
+                            instance_content += "\n    " + ",\n    ".join(port_connections) + "\n);\n\n"
+                            
+                            # Find "endmodule" and insert instance before it
+                            endmodule_match = regex.search(r'\bendmodule\b', module_with_parity_ports)
+                            if endmodule_match:
+                                endmodule_pos = endmodule_match.start()
+                                top_file_contents_new = module_with_parity_ports[:endmodule_pos] + instance_content + module_with_parity_ports[endmodule_pos:]
                             else:
-                                module_whole_content = module_whole_content + "\n" + instance_content + "endmodule"
+                                top_file_contents_new = module_with_parity_ports
                         else:
-                            print(f"Warning: Could not extract ports from parity module for IP {ip}")
-                            module_whole_content = module_whole_content
+                            top_file_contents_new = module_with_parity_ports
                     else:
-                        print(f"Instance {instance_name} already exists in {top_name}, skipping instance addition")
-                        module_whole_content = module_whole_content
-                    top_file_contents = module_declaration_content + module_whole_content
-
-                    # par_dir = f"./Parity_generator/module_parity/BUS_PARITY_{top_name}_TOP.v"
-                    # par_file = open(par_dir, 'w')
-                    # par_file.write(before_top_file_contents + top_file_contents + after_top_file_contents)
+                        # gen_top = NO: Do not modify anything
+                        top_file_contents_new = None
 
                     file_name = top_file_dir.split('/')[-1][:-2] if top_file_dir.endswith('.v') else \
                     top_file_dir.split('/')[-1][:-3]
                     extension = top_file_dir.split('.')[-1]
                     
                     # Generate top wrapper only if gen_top flag is set
-                    if gen_top:
+                    if gen_top and top_file_contents_new:
+                        # Create NEW file with parity ports + instance, keeping original logic
                         par_dir = remove_after_pattern(
                             "/".join(top_file_dir.split('/')[:-1])) + f"/SAFETY/{file_name}_NEW.{extension}"
                         par_file = open(par_dir, 'w')
-                        par_file.write(before_top_file_contents + top_file_contents + after_top_file_contents)
-                        print(bcolors.OKGREEN + f"Finished swapping original with paritied module {par_dir}" + bcolors.ENDC)
+                        par_file.write(before_top_file_contents + top_file_contents_new + after_top_file_contents)
+                        par_file.close()
+                        print(bcolors.OKGREEN + f"Finished creating top module wrapper {par_dir}" + bcolors.ENDC)
+                    # Note: When gen_top = NO, original file is NOT modified. Only parity module is generated.
 
                     par_dir = remove_after_pattern(
                         "/".join(top_file_dir.split('/')[:-1])) + f"/SAFETY/{file_name}_PARITY_NEW.{extension}"
