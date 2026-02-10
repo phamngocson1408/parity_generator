@@ -213,14 +213,6 @@ if __name__ == "__main__":
                 # FIERR ports for data signals should NOT be included - only FIERR/ENERR for parity control
                 skip_fierr_data = {'FIERR_WADDR_DATA', 'FIERR_WDATA_DATA', 'FIERR_RADDR_DATA', 'FIERR_RDATA_DATA'}
                 
-                # Data signal port names that should NOT be re-declared (they already exist in top module)
-                # Pattern: These are actual data signals that parity module connects to, not new port declarations
-                skip_data_signals = {
-                    'ARADDR', 'AWADDR', 'WDATA', 'RDATA',  # Core address/data signals
-                    'ARVALID', 'AWVALID', 'WVALID', 'RVALID',  # Validity signals
-                    'ARREADY', 'AWREADY', 'WREADY', 'RREADY',  # Ready signals
-                }
-                
                 # Extract already declared input port names from top module
                 existing_inputs = set()
                 for line in top_port_declaration.split('\n'):
@@ -230,6 +222,17 @@ if __name__ == "__main__":
                         port_match = re.search(r'input\s+(\[.*?\]\s+)?(\w+)', line_stripped)
                         if port_match:
                             existing_inputs.add(port_match.group(2))
+                
+                # Extract already declared output port names from top module (for SIMPLE_TOP input RDATA_DATA issue)
+                # i.e., ports that have same name but different direction (inputs from parity that match outputs in top)
+                existing_outputs = set()
+                for line in top_port_declaration.split('\n'):
+                    line_stripped = line.strip()
+                    if line_stripped.startswith('output'):
+                        # Extract port name from: "output [width] port_name" or similar
+                        port_match = re.search(r'output\s+(\[.*?\]\s+)?(\w+)', line_stripped)
+                        if port_match:
+                            existing_outputs.add(port_match.group(2))
                 
                 # Parse each line to find input ports
                 for line in port_declaration.split('\n'):
@@ -248,15 +251,21 @@ if __name__ == "__main__":
                                     bit_width = raw_width[1:-1] if raw_width.startswith('[') and raw_width.endswith(']') else raw_width
                                     port_name = match.group(2)
                                     
-                                    # Check if port name contains any skip data signal keywords
-                                    skip_due_to_data = any(data_sig in port_name for data_sig in skip_data_signals)
+                                    # Only include if:
+                                    # 1. Not a skip port (ACLK, RESETN, etc)
+                                    # 2. Not already an input in top module
+                                    # 3. Not in skip_fierr_data
+                                    # 4. Not already seen
+                                    # 5. Allow if it's a parity-related port (like *_PARITY, ENERR*, FIERR*) OR not in existing_outputs
+                                    #    (to avoid duplicating data signal ports with different direction)
+                                    is_parity_port = '_PARITY' in port_name or port_name.startswith('ENERR') or port_name.startswith('FIERR') or port_name.startswith('ERR_')
+                                    skip_due_to_existing_output = (port_name in existing_outputs and not is_parity_port)
                                     
-                                    # Skip if already in skip list, top module declaration, data signal, or already seen
                                     if (port_name not in seen_ports and 
                                         port_name not in skip_ports and 
                                         port_name not in skip_fierr_data and
                                         port_name not in existing_inputs and
-                                        not skip_due_to_data):
+                                        not skip_due_to_existing_output):
                                         seen_ports.add(port_name)
                                         extra_inport.append([bit_width, port_name, ""])
                 
@@ -279,15 +288,7 @@ if __name__ == "__main__":
                 extra_outport = []
                 seen_ports = set()
                 
-                # Data signal port names that should NOT be re-declared (they already exist in top module)
-                # Pattern: These are actual data signals that parity module connects to, not new port declarations
-                skip_data_signals = {
-                    'ARADDR', 'AWADDR', 'WDATA', 'RDATA',  # Core address/data signals
-                    'ARVALID', 'AWVALID', 'WVALID', 'RVALID',  # Validity signals
-                    'ARREADY', 'AWREADY', 'WREADY', 'RREADY',  # Ready signals
-                }
-                
-                # Extract already declared output port names from top module (not just presence in string)
+                # Extract already declared output port names from top module
                 existing_outputs = set()
                 for line in top_port_declaration.split('\n'):
                     line_stripped = line.strip()
@@ -296,6 +297,16 @@ if __name__ == "__main__":
                         port_match = re.search(r'output\s+(\[.*?\]\s+)?(\w+)', line_stripped)
                         if port_match:
                             existing_outputs.add(port_match.group(2))
+                
+                # Extract already declared input port names from top module (for reverse direction conflicts)
+                existing_inputs = set()
+                for line in top_port_declaration.split('\n'):
+                    line_stripped = line.strip()
+                    if line_stripped.startswith('input'):
+                        # Extract port name from: "input [width] port_name" or similar
+                        port_match = re.search(r'input\s+(\[.*?\]\s+)?(\w+)', line_stripped)
+                        if port_match:
+                            existing_inputs.add(port_match.group(2))
                 
                 # Parse each line to find output ports
                 for line in port_declaration.split('\n'):
@@ -314,13 +325,17 @@ if __name__ == "__main__":
                                     bit_width = raw_width[1:-1] if raw_width.startswith('[') and raw_width.endswith(']') else raw_width
                                     port_name = match.group(2)
                                     
-                                    # Check if port name contains any skip data signal keywords
-                                    skip_due_to_data = any(data_sig in port_name for data_sig in skip_data_signals)
+                                    # Only include if:
+                                    # 1. Not already an output in top module
+                                    # 2. Not already seen
+                                    # 3. Allow if it's a parity-related port (like *_PARITY, ENERR*, FIERR*) OR not in existing_inputs
+                                    #    (to avoid duplicating data signal ports with different direction)
+                                    is_parity_port = '_PARITY' in port_name or port_name.startswith('ENERR') or port_name.startswith('FIERR') or port_name.startswith('ERR_')
+                                    skip_due_to_existing_input = (port_name in existing_inputs and not is_parity_port)
                                     
-                                    # Skip if already declared in top module, data signal, or already seen
                                     if (port_name not in seen_ports and 
                                         port_name not in existing_outputs and
-                                        not skip_due_to_data):
+                                        not skip_due_to_existing_input):
                                         seen_ports.add(port_name)
                                         extra_outport.append([bit_width, port_name, ""])
                 
