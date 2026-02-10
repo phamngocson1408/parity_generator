@@ -335,24 +335,29 @@ if __name__ == "__main__":
         
         module_content = remove_parity_instances(module_content)
         
-        # Remove lines containing parity/error signal names (ports and signals)
+        # Remove lines containing OLD parity signal names (ports and signals)
+        # Keep NEW consolidated format: ENERR_AXICRYPT_AXI_BUS_PARITY, ERR_AXICRYPT_AXI_BUS_PARITY
         lines = module_content.split('\n')
         cleaned_lines = []
         
         for line in lines:
-            # Skip lines that contain parity signal names like _PARITY or PARITY_
-            if re.search(r'\w+_PARITY\b|\bPARITY_\w+', line):
+            # NEW consolidated error ports to KEEP - do NOT remove these
+            if re.search(r'(ENERR|FIERR|ERR)_AXICRYPT_AXI_BUS_PARITY', line):
+                cleaned_lines.append(line)
                 continue
             
-            # Skip old parity control ports specific to MI0/SI0 that will be replaced:
+            # Skip lines with OLD parity ports specific to MI0/SI0 that will be replaced:
             # FIERR_AXICRYPT_AXI_MI0_*  
             # ENERR_AXICRYPT_AXI_MI0_*
-            # Note: Keep ENERR_AXICRYPT_AXI_BUS_PARITY and FIERR_AXICRYPT_AXI_BUS_PARITY (new format without _MI0/_SI0)
             if re.search(r'(FIERR|ENERR)_AXICRYPT_AXI_(MI0|SI0)', line):
                 continue
             
             # Also skip old ERR outputs with _MI0 suffix (replaced by new consolidated format)
             if re.search(r'ERR_AXICRYPT_AXI_MI0_BUS_PARITY', line):
+                continue
+            
+            # Skip lines that contain parity signal names like _PARITY (data parity ports)
+            if re.search(r'\w+_PARITY\b|\bPARITY_\w+', line):
                 continue
             
             cleaned_lines.append(line)
