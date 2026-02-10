@@ -225,7 +225,9 @@ if __name__ == "__main__":
                                 # Parse: input [width] port_name
                                 match = re.search(r'input\s+(\[.*?\]\s+)?(\w+)', part)
                                 if match:
-                                    bit_width = match.group(1).strip() if match.group(1) else ""
+                                    # Remove brackets from bit_width: "[31:0]" -> "31:0"
+                                    raw_width = match.group(1).strip() if match.group(1) else ""
+                                    bit_width = raw_width[1:-1] if raw_width.startswith('[') and raw_width.endswith(']') else raw_width
                                     port_name = match.group(2)
                                     
                                     # Skip if already in top module declaration, in skip list, or data-related FIERR
@@ -267,7 +269,9 @@ if __name__ == "__main__":
                                 # Parse: output [width] port_name
                                 match = re.search(r'output\s+(\[.*?\]\s+)?(\w+)', part)
                                 if match:
-                                    bit_width = match.group(1).strip() if match.group(1) else ""
+                                    # Remove brackets from bit_width: "[31:0]" -> "31:0"
+                                    raw_width = match.group(1).strip() if match.group(1) else ""
+                                    bit_width = raw_width[1:-1] if raw_width.startswith('[') and raw_width.endswith(']') else raw_width
                                     port_name = match.group(2)
                                     
                                     # Skip if already in top module declaration
@@ -282,7 +286,7 @@ if __name__ == "__main__":
         return []
     
     def clean_parity_from_module(module_content, module_name):
-        """Remove only parity-related ports (containing 'PARITY') and parity instances from module"""
+        """Remove only parity-related ports (containing 'PARITY' signal names) and parity instances from module"""
         import re
         
         # Remove complete parity instance blocks: pattern matches the entire instance declaration
@@ -292,32 +296,15 @@ if __name__ == "__main__":
         
         lines = module_content.split('\n')
         cleaned_lines = []
+        skip_mode = False  # Track if we're inside a parity instance port list
         
         for i, line in enumerate(lines):
             stripped = line.strip()
             
-            # Skip lines that contain "PARITY" in port name (true parity ports)
-            if 'PARITY' in line:
+            # Skip lines that contain parity signal names (not just "PARITY" keyword)
+            # Look for actual parity signal names like _PARITY or PARITY_
+            if re.search(r'\w+_PARITY\b|\bPARITY_\w+', line):
                 continue
-            
-            # Detect orphaned port connection lines (start with . and follow assignments)
-            # Usually appear before the proper instance declaration
-            if stripped.startswith('.') and ('(' in stripped and ')' in stripped):
-                # This is likely a dangling port connection - skip it
-                continue
-            
-            # Skip standalone closing paren that appears after assignments
-            # (indicator of broken instance removal)
-            if stripped == ');' and len(cleaned_lines) > 0:
-                # Check if previous lines are assignments or logic, not port declarations
-                prev_line_idx = len(cleaned_lines) - 1
-                while prev_line_idx >= 0 and cleaned_lines[prev_line_idx].strip() == '':
-                    prev_line_idx -= 1
-                if prev_line_idx >= 0:
-                    prev_line_stripped = cleaned_lines[prev_line_idx].strip()
-                    # If previous line is assignment or logic (not port), skip this )
-                    if any(kw in prev_line_stripped for kw in ['assign', 'always', 'end', 'endmodule', 'begin']):
-                        continue
             
             cleaned_lines.append(line)
         
@@ -395,38 +382,26 @@ if __name__ == "__main__":
                     with open(top_file_dir, 'r') as file:
                         top_file_contents_ori = file.read()
 
-                    # For gen_top = NO: clean parity ports/instances from original file
-                    # For gen_top = YES: keep original file untouched
-                    if not gen_top:
-                        top_file_contents_ori = clean_parity_from_module(top_file_contents_ori, top_name)
+                    # Always clean parity logic from file for processing
+                    # (we'll add new parity instance if gen_top = YES)
+                    top_file_contents_cleaned = clean_parity_from_module(top_file_contents_ori, top_name)
 
-                    ModuleLocator = LocateModule(top_file_contents_ori, top_name)
+                    ModuleLocator = LocateModule(top_file_contents_cleaned, top_name)
                     before_top_file_contents, top_file_contents, after_top_file_contents = ModuleLocator._separate_ip()
 
                     # Add error ports to top module
                     top_file_contents_before_safety = top_file_contents
                     
-                    # For gen_top = YES: use original module content without removal
-                    # For gen_top = NO: remove old parity assignments
-                    _, module_whole_content_orig = module_partition(top_file_contents_before_safety, top_name)
-                    
-                    InstanceLocator = LocateInstance(module_whole_content_orig, args.inst)
-                    try:
-                        module_whole_content_cleaned = InstanceLocator._remove_ips()
-                        is_safe = True
-                    except:
-                        is_safe = False
-                    
-                    is_safe = False # For now, not using removal for parity
+                    # Extract module content for processing
+                    _, module_whole_content = module_partition(top_file_contents_before_safety, top_name)
 
                     # For gen_top = YES: Create NEW file by:
-                    # 1. Keep full original module declaration + ports
-                    # 2. Add parity ports before ");","  
+                    # 1. Use cleaned module (old parity removed)
+                    # 2. Add parity ports to declaration
                     # 3. Add parity instance before endmodule
-                    # 4. Keep all other logic
 
                     if gen_top:
-                        # Get full module content from original file
+                        # Use cleaned module content (old parity logic removed)
                         import re as regex
                         
                         # Extract parity ports to add
@@ -436,10 +411,12 @@ if __name__ == "__main__":
                         # Build parity port strings
                         parity_ports_str = ""
                         for parity_port in parity_extra_inports:
-                            port_width = ("[" + parity_port[0] + "-1:0] ") if parity_port[0] else ""
+                            # parity_port[0] now contains just the range like "35-1:0" or "4:0" (no brackets)
+                            port_width = ("[" + parity_port[0] + "] ") if parity_port[0] else ""
                             parity_ports_str += ",\n    input " + port_width + parity_port[1]
                         for parity_port in parity_extra_outports:
-                            port_width = ("[" + parity_port[0] + "-1:0] ") if parity_port[0] else ""
+                            # parity_port[0] now contains just the range like "35-1:0" or "4:0" (no brackets)
+                            port_width = ("[" + parity_port[0] + "] ") if parity_port[0] else ""
                             parity_ports_str += ",\n    output " + port_width + parity_port[1]
                         
                         # Find position to insert parity ports - right before );  at end of port list
