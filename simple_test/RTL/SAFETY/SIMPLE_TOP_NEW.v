@@ -40,12 +40,8 @@ module SIMPLE_TOP (
     input ENERR_WADDR_PARITY,
     input FIERR_WADDR_PARITY,
     input [0:0] WADDR_PARITY,
-    input [0:0] WDATA_PARITY,
     input [0:0] RADDR_PARITY,
-    input [64-1:0] RDATA_DATA,
-    input RDATA_VALID,
-    output ERR_WADDR_PARITY,
-    output [0:0] RDATA_PARITY
+    output ERR_WADDR_PARITY
 );
 
 
