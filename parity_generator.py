@@ -420,11 +420,18 @@ if __name__ == "__main__":
                             parity_ports_str += ",\n    output " + port_width + parity_port[1]
                         
                         # Find position to insert parity ports - right before );  at end of port list
-                        # Search for );" with possible whitespace, which closes port list
-                        port_list_match = regex.search(r'(\))\s*(;)', top_file_contents)
+                        # Pattern matches: optional whitespace, );, optional whitespace at end of line
+                        port_list_match = regex.search(r'(\s*\)\s*;)', top_file_contents)
                         if port_list_match:
-                            insert_pos = port_list_match.start(1)  # Position of ")"
-                            module_with_parity_ports = top_file_contents[:insert_pos] + parity_ports_str + top_file_contents[insert_pos:]
+                            # Get text before the closing );
+                            text_before_ending = top_file_contents[:port_list_match.start()]
+                            # Remove any trailing whitespace and comma from the last port
+                            text_before_ending = regex.sub(r',\s*$', '', text_before_ending)
+                            # Add parity ports and close with ); on its own line
+                            module_with_parity_ports = (text_before_ending + 
+                                                       parity_ports_str + 
+                                                       "\n);\n" +
+                                                       top_file_contents[port_list_match.end():])
                         else:
                             # Fallback: just use original
                             module_with_parity_ports = top_file_contents

@@ -11,7 +11,6 @@
 
 module SIMPLE_TOP (
 
-
     input                       ACLK,
     input                       RESETN_ACLK,
     
@@ -37,14 +36,12 @@ module SIMPLE_TOP (
     
     // Status outputs
     output [7:0]               STATUS,
-    input  ENERR_WADDR_PARITY ,
-    input  FIERR_WADDR_PARITY ,
-    input [1-1:0] WADDR_PARITY ,
-    input [1-1:0] WDATA_PARITY ,
-    input [1-1:0] RADDR_PARITY ,
-    output  ERR_WADDR_PARITY ,
     output  ERR_WADDR_PARITY_B ,
-    output [1-1:0] RDATA_PARITY 
+    input ENERR_WADDR_PARITY,
+    input FIERR_WADDR_PARITY,
+    input [0:0] WDATA_PARITY,
+    input [0:0] RADDR_PARITY,
+    output [0:0] RDATA_PARITY
 );
 
 
@@ -96,6 +93,20 @@ module SIMPLE_TOP (
 SIMPLE_TOP_IP_PARITY_GEN u_simple_top_ip_parity_gen (
     .ACLK (ACLK),
     .RESETN_ACLK (RESETN_ACLK),
+    .ERR_WADDR_PARITY_B (ERR_WADDR_PARITY_B),
+    .WADDR_DATA (WADDR_DATA),
+    .WADDR_VALID (WADDR_VALID),
+    .WDATA_DATA (WDATA_DATA),
+    .WDATA_VALID (WDATA_VALID),
+    .RADDR_DATA (RADDR_DATA),
+    .RADDR_VALID (RADDR_VALID),
+    .RDATA_DATA (RDATA_DATA),
+    .RDATA_VALID (RDATA_VALID)
+);
+
+SIMPLE_TOP_IP_PARITY_GEN u_simple_top_ip_parity_gen (
+    .ACLK (ACLK),
+    .RESETN_ACLK (RESETN_ACLK),
     .ENERR_WADDR_PARITY (ENERR_WADDR_PARITY),
     .ERR_WADDR_PARITY (ERR_WADDR_PARITY),
     .ERR_WADDR_PARITY_B (ERR_WADDR_PARITY_B),
@@ -113,4 +124,5 @@ SIMPLE_TOP_IP_PARITY_GEN u_simple_top_ip_parity_gen (
     .RDATA_PARITY (RDATA_PARITY),
     .RDATA_VALID (RDATA_VALID)
 );
+
 endmodule

@@ -9,16 +9,16 @@ module SIMPLE_TOP_IP_PARITY_GEN (
     output ERR_WADDR_PARITY_B,
     input  FIERR_WADDR_PARITY,
     input  [32-1:0] WADDR_DATA,
-    input  [1-1:0] WADDR_PARITY,
+    input  [0:0] WADDR_PARITY,
     input  WADDR_VALID,
     input  [64-1:0] WDATA_DATA,
-    input  [1-1:0] WDATA_PARITY,
+    input  [0:0] WDATA_PARITY,
     input  WDATA_VALID,
     input  [32-1:0] RADDR_DATA,
-    input  [1-1:0] RADDR_PARITY,
+    input  [0:0] RADDR_PARITY,
     input  RADDR_VALID,
     input  [64-1:0] RDATA_DATA,
-    output [1-1:0] RDATA_PARITY,
+    output [0:0] RDATA_PARITY,
     input  RDATA_VALID
 );
 
