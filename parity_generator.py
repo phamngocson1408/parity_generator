@@ -286,21 +286,40 @@ if __name__ == "__main__":
         return []
     
     def clean_parity_from_module(module_content, module_name):
-        """Remove only parity-related ports (containing 'PARITY' signal names) and parity instances from module"""
+        """Remove parity-related ports and all parity instances from module"""
         import re
         
-        # Remove complete parity instance blocks: pattern matches the entire instance declaration
-        # Match from module_name_IP_PARITY_GEN ... ); including all port connections
-        instance_pattern = r'\n\s*' + re.escape(module_name) + r'_IP_PARITY_GEN\s+u_\w+_ip_parity_gen\s*\([^)]*\)\s*;'
-        module_content = re.sub(instance_pattern, '', module_content, flags=re.DOTALL)
+        # Remove all PARITY_GEN instances (handles nested parentheses)
+        # Pattern: module_name followed by optional suffix, then instance name, then ports in parentheses
+        # Handles both BOS_AXICRYPT_IP_PARITY_GEN and BOS_AXICRYPT_IP_PARITY_GEN_M variants
+        parity_instance_pattern = r'\n\s*' + re.escape(module_name) + r'_IP_PARITY_GEN[_\w]*\s+u_\w+\s*\(([\s\S]*?)\)\s*;'
         
+        # Use a helper function to properly match nested parentheses
+        def remove_parity_instances(text):
+            """Remove all parity module instances using proper bracket matching"""
+            result = []
+            i = 0
+            while i < len(text):
+                # Look for pattern: whitespace + module_name + _IP_PARITY_GEN + ... + u_ + name + (
+                match = re.search(parity_instance_pattern, text[i:], re.DOTALL)
+                if match:
+                    # Add text before the match
+                    result.append(text[i:i+match.start()])
+                    # Move past the matched instance (skip it entirely)
+                    i = i + match.end()
+                else:
+                    # No more matches, add the rest
+                    result.append(text[i:])
+                    break
+            return ''.join(result)
+        
+        module_content = remove_parity_instances(module_content)
+        
+        # Remove lines containing parity signal names (ports and signals)
         lines = module_content.split('\n')
         cleaned_lines = []
-        skip_mode = False  # Track if we're inside a parity instance port list
         
-        for i, line in enumerate(lines):
-            stripped = line.strip()
-            
+        for line in lines:
             # Skip lines that contain parity signal names (not just "PARITY" keyword)
             # Look for actual parity signal names like _PARITY or PARITY_
             if re.search(r'\w+_PARITY\b|\bPARITY_\w+', line):
